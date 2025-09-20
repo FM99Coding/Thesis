@@ -57,7 +57,7 @@ df_links=pd.DataFrame(columns=['Name', 'Source_Device', 'Source_Port', 'Dest_Dev
                                'Error_Rate[%]', 'Drop_Rate[%]']) #dataframe of Ethernet links
 df_connections=pd.DataFrame(columns=['Interface', 'AP', 'Access_Port', 'Connected_Devices', 'Type', 'Bandwidth[Mbps]',
                                      'Queue_size', 'Backlog_Packets', 'Backlog_Bytes' 'Tot_Packets', 'Raw_Data[Byte]',
-                                     'Tot_Errors', 'Tot_Drops', 'Throughput[Mbps]', 'Utilization[%]', 'Occupation[%]',
+                                     'Tot_Errors', 'Tot_Drops', 'Collisions', 'Throughput[Mbps]', 'Utilization[%]', 'Occupation[%]',
                                      'Error_Rate[%]', 'Drop_Rate[%]', 'Collision_Rate[%]']) #dataframe of WiFi connections
 
 ###Locks for multithreaded access to data structures
@@ -121,45 +121,7 @@ def fetch_data_from_onos():
         read_links(onos_links_data)
 
         ################################################################Gets info about WiFi connections of host devices
-        wifi_connections_list=[]
-        wifi_ports=df_eth_ports[df_eth_ports['Type']=='WiFi'] #filters only WiFi ports on OVS access points
-
-        for index, row in wifi_ports.iterrows(): #for every WiFi port
-            access_point=row['OVS_Device']
-            access_port=row['Port_Num']
-            connection_point=f"{access_point}/{access_port}"
-
-            connected_hosts=df_hosts[df_hosts['Connection_Point']==connection_point] #host devices connected to this WiFi port
-            connected_devices_list=connected_hosts['ID'].tolist() #extracts IDs of connected hosts
-
-            if not connected_devices_list: #if no host device is connected to this WiFi port
-                print(f"Error: unable to find connected hosts for Connection Point: {connection_point}")
-                continue #go to next WiFi connection
-
-            #Connection Metrics
-            bandwidth=row['Port Speed [Mbps]'] #Mbps
-            tx_bytes=row['Tx_Bytes']
-            rx_bytes=row['Rx_Bytes']
-            sampling_interval=row['Sample_Time[s]'] #s
-
-            throughput=((tx_bytes+rx_bytes)*(8/sampling_interval))/1000000 #Mbps
-            utilization=(throughput/bandwidth)*100
-
-            wifi_connection_data = {
-                'Interface': row['Name'],
-                'AP': access_point,
-                'Access_Port': access_port,
-                'Connected_Devices': connected_devices_list,
-                'Type': 'WiFi',
-                'Bandwidth[Mbps]': bandwidth,
-                'Raw_Data[Byte]': tx_bytes+rx_bytes,
-                'Throughput[Mbps]': throughput,
-                'Utilization[%]': utilization } #data about this WiFi connection
-
-            wifi_connections_list.append(wifi_connection_data) #adds connection data to list
-
-        if wifi_connections_list:
-            df_connections=pd.DataFrame(wifi_connections_list) #populates dataframe about WiFi connections
+        read_connections()
 
         print("Data fetched successfully!")
 
@@ -484,6 +446,81 @@ def read_links(onos_links_data):
 
     if links_list:
         df_links=pd.DataFrame(links_list) #populates Ethernet links dataframe with fetched data
+
+'''Populate dataframes with data about WiFi connections between read from onos'''
+def read_connections():
+    global df_stations, df_wlan_ports, df_connections
+
+    wifi_connections_list=[]
+
+    for index, row in df_wlan_ports.iterrows(): #for every WiFi port
+        access_point=row['OVS_Device']
+        access_port=row['Port_Num']
+        connection_point=f"{access_point}/{access_port}"
+
+        connected_hosts=df_stations[df_stations['Connection_Point']==connection_point] #station devices connected to this WiFi port
+        connected_devices_list=connected_hosts['ID'].tolist() #extracts IDs of connected hosts
+
+        if not connected_devices_list: #if no station device is connected to this WiFi port
+            print(f"Error: unable to find connected hosts for Connection Point: {connection_point}")
+            continue #go to next WiFi connection
+
+        ###Connection Metrics
+        tx_bytes=row['Tx_Bytes']
+        rx_bytes=row['Rx_Bytes']
+        tx_packets=row['Tx_Packets']
+        rx_packets=row['Rx_Packets']
+        tx_errors=row['Tx_Errors']
+        rx_errors=row['Rx_Errors']
+        tx_drops=row['Tx_Drops']
+        rx_drops=row['Rx_Drops']
+        cols=row['Collisions']
+
+        bandwidth=row['Max_Throughput[Mbps]'] #Mbps
+        queue_size=row['Max_Queue_Length']
+        backlog_p=row['Backlog_Packets']
+
+        sampling_interval=row['Sample_Time[s]'] #s
+
+        throughput=((tx_bytes+rx_bytes)*(8/sampling_interval))/1000000 #Mbps
+        utilization=(throughput/bandwidth)*100
+
+        occupation=(backlog_p/queue_size)*100 #current occupation of WiFi AP's buffer [%]
+        try:
+            error_rate=(tx_errors+rx_errors)/(tx_packets+rx_packets+tx_errors+rx_errors+tx_drops+rx_drops+cols)
+            drop_rate=(tx_drops+rx_drops)/(tx_packets+rx_packets+tx_errors+rx_errors+tx_drops+rx_drops+cols)
+            cols_rate=cols/(tx_packets+rx_packets+tx_errors+rx_errors+tx_drops+rx_drops+cols)
+        except ZeroDivisionError:
+            error_rate=0
+            drop_rate=0
+            cols_rate=0
+
+        wifi_connection_data={
+            'Interface': row['Name'],
+            'AP': access_point,
+            'Access_Port': access_port,
+            'Connected_Devices': connected_devices_list,
+            'Type': 'WiFi',
+            'Bandwidth[Mbps]': bandwidth,
+            "Queue_Size": queue_size,
+            "Backlog_Packets": backlog_p,
+            "Backlog_Bytes": row['Backlog_Bytes'],
+            'Raw_Data[Byte]': tx_bytes+rx_bytes,
+            'Tot_Packets': tx_packets+rx_packets,
+            'Tot_Errors': tx_errors+rx_errors,
+            'Tot_Drops': tx_drops+rx_drops,
+            'Collisions': cols,
+            'Throughput[Mbps]': throughput,
+            'Utilization[%]': utilization,
+            'Occupation[%]': occupation,
+            'Error_Rate[%]': error_rate,
+            'Drop_Rate[%]': drop_rate,
+            'Collision_Rate[%]': cols_rate} #data about this WiFi connection
+
+        wifi_connections_list.append(wifi_connection_data) #adds connection data to list
+
+    if wifi_connections_list:
+        df_connections=pd.DataFrame(wifi_connections_list) #populates dataframe about WiFi connections
 
 #################################################################################################Thread Target Functions
 '''Periodically update topology_summary dictionary (content of endpoint http://localhost:8080/topology)'''
@@ -1113,9 +1150,9 @@ def update_links():
 
             new_links_list=[] #list of newly discovered Ethernet links between OVS devices
             with links_lock:
-                current_links_map={row['Name']: row.name for index, row in df_links.iterrows()} #<link name, row index> for all links in the DataFrame
+                current_links_map={row['Name']: row.name for index, row in df_links.iterrows()} #<name, row index> for links in the DF
 
-                onos_links_set=set() #contains 4-tuple <src device, src port, dst device, dst port> for every link currently seen by ONOS
+                onos_links_set=set() #contains 4-tuple <src device, src port, dst device, dst port> for links currently seen by ONOS
                 onos_links_dict={} #<link name, link info> for all links seen by Onos
                 for link in onos_links_data: #for all links seen by ONOS (bidirectional links are reported twice in opposite directions)
                     src_device=link.get("src").get("device")
@@ -1123,12 +1160,13 @@ def update_links():
                     dst_device=link.get("dst").get("device")
                     dst_port_num=link.get("dst").get("port")
 
-                    link_tuple=tuple(sorted((f"{src_device}/{src_port_num}", f"{dst_device}/{dst_port_num}"))) #4-tuple identifying the link
+                    link_tuple=tuple(sorted((f"{src_device}/{src_port_num}", f"{dst_device}/{dst_port_num}"))) #4-tuple of the link
 
                     src_port_data=df_eth_ports[(df_eth_ports['OVS_Device']==src_device) & (df_eth_ports['Port_Num']==src_port_num)]
                     dst_port_data=df_eth_ports[(df_eth_ports['OVS_Device']==dst_device) & (df_eth_ports['Port_Num']==dst_port_num)]
                     if src_port_data.empty or dst_port_data.empty:
                         continue #go to next link
+
                     src_port_name=src_port_data['Name'].iloc[0]
                     dst_port_name=dst_port_data['Name'].iloc[0]
                     link_name=f"{src_port_name} <-> {dst_port_name}"
@@ -1137,7 +1175,7 @@ def update_links():
                         onos_links_set.add(link_tuple) #adds 4-tuple to the set, to avoid adding the reverse-direction link
                         onos_links_dict[link_name]=link #saves link's info in the dictionary
 
-                links_to_remove=set(current_links_map.keys())-set(onos_links_dict.keys()) #if ONOS does not see the link anymore, it has to be removed
+                links_to_remove=set(current_links_map.keys())-set(onos_links_dict.keys()) #if ONOS does not see the link anymore
                 if links_to_remove: #if there are links to be removed
                     df_links.set_index('Name', inplace=True) #sets column Name as DataFrame index (more efficient removal)
                     df_links.drop(list(links_to_remove), inplace=True) #remove DataFrame rows corresponding to stale links
@@ -1151,24 +1189,44 @@ def update_links():
                     dst_port_num=link.get("dst").get("port")
 
                     with eth_ports_lock:
-                        src_port_data=df_eth_ports[(df_eth_ports['OVS_Device']==src_device) & (df_eth_ports['Port_Num']==src_port_num)] #gets source port info
-                        dst_port_data=df_eth_ports[(df_eth_ports['OVS_Device']==dst_device) & (df_eth_ports['Port_Num']==dst_port_num)] #gets destination port info
+                        ###Get port's info
+                        src_port_data=df_eth_ports[(df_eth_ports['OVS_Device']==src_device) & (df_eth_ports['Port_Num']==src_port_num)]
+                        dst_port_data=df_eth_ports[(df_eth_ports['OVS_Device']==dst_device) & (df_eth_ports['Port_Num']==dst_port_num)]
 
-                        if src_port_data.empty or dst_port_data.empty: #if either the source or destination port of the link is not recorded
+                        if src_port_data.empty or dst_port_data.empty: #if source/destination port is not recorded
                             if link_name in current_links_map: #if the current link is already in the DataFrame
-                                df_links.drop(index=current_links_map[link_name], inplace=True) #removes row corresponding to invalid link
+                                df_links.drop(index=current_links_map[link_name], inplace=True) #removes row of invalid link
                                 print(f"Removed link with invalid ports: {link_name}")
                             continue #go to next link (if the current link was new, it will not be saved in the DataFrame)
 
-                        #gets link's stats from source port
+                        #gets link's stats from ports
                         tx_bytes=src_port_data['Tx_Bytes'].iloc[0]
                         rx_bytes=src_port_data['Rx_Bytes'].iloc[0]
-                        bandwidth=src_port_data['Port Speed [Mbps]'].iloc[0]
+                        tx_packets=src_port_data['Tx_Packets'].iloc[0]
+                        rx_packets=src_port_data['Rx_Packets'].iloc[0]
+                        tx_errors=src_port_data['Tx_Errors'].iloc[0]
+                        rx_errors=src_port_data['Rx_Errors'].iloc[0]
+                        tx_drops=src_port_data['Tx_Drops'].iloc[0]
+                        rx_drops=src_port_data['Rx_Drops'].iloc[0]
+
+                        bandwidth=src_port_data['Max_Throughput[Mbps]'].iloc[0]
+                        queue_size=src_port_data['Max_Queue_Length'].iloc[0]+dst_port_data['Max_Queue_Length'].iloc[0]
+                        backlog_p=src_port_data['Backlog_Packets'].iloc[0]+dst_port_data['Backlog_Packets'].iloc[0]
+                        backlog_b=src_port_data['Backlog_Bytes'].iloc[0]+dst_port_data['Backlog_Bytes'].iloc[0]
+
                         sampling_interval=src_port_data['Sample_Time[s]'].iloc[0]
 
                     if link_name not in current_links_map: #if the link is new (registered for the first time in the DataFrame)
                         throughput=((tx_bytes+rx_bytes)*(8/sampling_interval))/1000000 #[Mbps]
                         utilization=(throughput/bandwidth)*100 #[%]
+
+                        occupation=(backlog_p/queue_size)*100 #current occupation of link's endpoint buffers [%]
+                        try:
+                            error_rate=(tx_errors+rx_errors)/(tx_packets+rx_packets+tx_errors+rx_errors+tx_drops+rx_drops)
+                            drop_rate=(tx_drops+rx_drops)/(tx_packets+rx_packets+tx_errors+rx_errors+tx_drops+rx_drops)
+                        except ZeroDivisionError:
+                            error_rate=0
+                            drop_rate=0
 
                         new_row={
                             "Name": f"{link_name}",
@@ -1178,21 +1236,56 @@ def update_links():
                             "Dest_Port": dst_port_num,
                             "Type": "Ethernet",
                             "Bandwidth[Mbps]": bandwidth,
+                            "Queue_Size": queue_size,
+                            "Backlog_Packets": backlog_p,
+                            "Backlog_Bytes": src_port_data['Backlog_Bytes'].iloc[0]+dst_port_data['Backlog_Bytes'].iloc[0],
+                            "Tot_Packets": tx_packets+rx_packets,
                             "Raw_Data[Byte]": tx_bytes+rx_bytes,
+                            "Tot_Errors": tx_errors+rx_errors,
+                            "Tot_Drops": tx_drops+rx_drops,
                             "Throughput[Mbps]": throughput,
-                            "Utilization[%]": utilization} #creates row for the new link
+                            "Utilization[%]": utilization,
+                            "Occupation[%]": occupation,
+                            "Error_Rate[%]": error_rate,
+                            "Drop_Rate[%]": drop_rate} #creates row for the new link
 
                         new_links_list.append(new_row)
                         print(f"Added new link: {link_name}")
 
                     else: #if the link is not new (already registered in the DataFrame)
                         previous_data=df_links.loc[current_links_map[link_name], 'Raw_Data[Byte]']
+                        previous_packets=df_links.loc[current_links_map[link_name], 'Tot_Packets']
+                        previous_errors=df_links.loc[current_links_map[link_name], 'Tot_Errors']
+                        previous_drops=df_links.loc[current_links_map[link_name], 'Tot_Drops']
+
                         throughput=((tx_bytes+rx_bytes-previous_data)*(8/30))/1000000 #[Mbps]
                         utilization=(throughput/bandwidth)*100 #[%]
 
-                        df_links.loc[current_links_map[link_name], 'Raw_Data[Byte]']=tx_bytes+rx_bytes #updates field in the DataFrame
-                        df_links.loc[current_links_map[link_name], 'Throughput[Mbps]']=throughput #updates field in the DataFrame
-                        df_links.loc[current_links_map[link_name], 'Utilization[%]']=utilization #updates field in the DataFrame
+                        occupation=(backlog_p/queue_size)*100 #current occupation of link's endpoint buffers[%]
+                        try:
+                            error_rate=(tx_errors+rx_errors-previous_errors)/(
+                                        tx_packets+rx_packets+tx_errors+rx_errors+tx_drops+rx_drops
+                                        -previous_packets-previous_errors-previous_drops)
+                            drop_rate=(tx_drops+rx_drops-previous_drops)/(
+                                       tx_packets+rx_packets+tx_errors+rx_errors+tx_drops+rx_drops
+                                        -previous_packets-previous_errors-previous_drops)
+                        except ZeroDivisionError:
+                            error_rate=0
+                            drop_rate=0
+
+                        ###Update fields in the DF
+                        df_links.loc[current_links_map[link_name], 'Raw_Data[Byte]']=tx_bytes+rx_bytes
+                        df_links.loc[current_links_map[link_name], 'Backlog_Packets']=backlog_p
+                        df_links.loc[current_links_map[link_name], 'Backlog_Bytes']=backlog_b
+                        df_links.loc[current_links_map[link_name], 'Tot_Packets']=tx_packets+rx_packets
+                        df_links.loc[current_links_map[link_name], 'Tot_Errors']=tx_errors+rx_errors
+                        df_links.loc[current_links_map[link_name], 'Tot_Drops']=tx_packets+rx_packets
+
+                        df_links.loc[current_links_map[link_name], 'Throughput[Mbps]']=throughput
+                        df_links.loc[current_links_map[link_name], 'Utilization[%]']=utilization
+                        df_links.loc[current_links_map[link_name], 'Occupation[%]']=occupation
+                        df_links.loc[current_links_map[link_name], 'Error_Rate[%]']=error_rate
+                        df_links.loc[current_links_map[link_name], 'Drop_Rate[%]']=drop_rate
                         print(f"Updated stats for link: {link_name}")
 
                 if new_links_list:
@@ -1203,7 +1296,7 @@ def update_links():
 
 '''Periodically update df_connections DataFrame (content of endpoint http://localhost:8080/topology/connections)'''
 def update_connections():
-    global df_connections, df_eth_ports, df_hosts
+    global df_connections, df_wlan_ports, df_stations
 
     while True:
         time.sleep(30) #waiting time of 30 [s] in between updates
@@ -1212,68 +1305,134 @@ def update_connections():
             new_connections_list=[] #list of newly discovered connections
             with connections_lock:
                 current_connections_map={row['Interface']: row.name
-                                         for index, row in df_connections.iterrows()} #<connection name, row index> for all registered connections
+                                         for index, row in df_connections.iterrows()} #<name, row index> for all registered connections
 
-                with eth_ports_lock:
-                    wifi_ports=df_eth_ports[df_eth_ports['Type']=='WiFi'] #filters only WiFi L2 ports from df_eth_ports DataFrame
+                with wlan_ports_lock:
+                    connections_to_remove=set(current_connections_map.keys())-set(df_wlan_ports['Name']) #the wlan port is not seen by ONOS anymore, remove connection
+                    if connections_to_remove: #if there are WiFi connections to be removed
+                        df_connections.set_index('Interface', inplace=True) #sets column Interface as DataFrame index
+                        df_connections.drop(list(connections_to_remove), inplace=True) #remove rows corresponding to stale connections
+                        df_connections.reset_index(inplace=True) #reset original DataFrame index
+                        print(f"Removed inactive connections: {connections_to_remove}")
 
-                connections_to_remove=set(current_connections_map.keys())-set(wifi_ports['Name']) #if the wlan port is not seen by ONOS anymore, remove connection
-                if connections_to_remove: #if there are WiFi connections to be removed
-                    df_connections.set_index('Interface', inplace=True) #sets column Interface as DataFrame index (more efficient removal)
-                    df_connections.drop(list(connections_to_remove), inplace=True) #remove DataFrame rows corresponding to stale WiFi connections
-                    df_connections.reset_index(inplace=True) #reset original DataFrame index
-                    print(f"Removed inactive connections: {connections_to_remove}")
+                    for index, row in df_wlan_ports.iterrows(): #for every up-to-date WiFi connection
+                        access_point=row['OVS_Device']
+                        access_port=row['Port_Num']
+                        connection_point=f"{access_point}/{access_port}"
+                        interface_name=row['Name']
 
-                for index, row in wifi_ports.iterrows(): #for every up-to-date WiFi connection
-                    access_point=row['OVS_Device']
-                    access_port=row['Port_Num']
-                    connection_point=f"{access_point}/{access_port}"
-                    interface_name=row['Name']
+                        with stas_lock:
+                            connected_stas=df_stations[df_stations['Connection_Point']==connection_point] #stas on current connection
+                            connected_stas_list=connected_stas['ID'].tolist()
 
-                    with hosts_lock:
-                        connected_hosts=df_hosts[df_hosts['Connection_Point']==connection_point] #gets all up-to-date host devices on current WiFi connection
-                        connected_hosts_list=connected_hosts['ID'].tolist()
+                        if not connected_stas_list: #if no station is exploiting this connection
+                            if interface_name in current_connections_map: #if current connection is already registered in the DataFrame
+                                df_connections.drop(index=current_connections_map[interface_name], inplace=True) #remove row
+                                print(f"Removed connection with no hosts: {interface_name}")
+                            continue #go to next connection (if the connection is new, it will not be saved in the DataFrame)
 
-                    if not connected_hosts_list: #if no host is exploiting this connection
-                        if interface_name in current_connections_map: #if current connection is already registered in the DataFrame
-                            df_connections.drop(index=current_connections_map[interface_name], inplace=True) #remove row related to unused connection
-                            print(f"Removed connection with no hosts: {interface_name}")
-                        continue #go to next connection (if the connection is new, it will not be saved in the DataFrame)
+                        ###gets stats about the WiFi connection from wlan port
+                        tx_bytes=row['Tx_Bytes']
+                        rx_bytes=row['Rx_Bytes']
+                        tx_packets=row['Tx_Packets']
+                        rx_packets=row['Rx_Packets']
+                        tx_errors=row['Tx_Errors']
+                        rx_errors=row['Rx_Errors']
+                        tx_drops=row['Tx_Drops']
+                        rx_drops=row['Rx_Drops']
+                        cols=row['Collisions']
 
-                    #gets stats about the WiFi connection from wlan port
-                    bandwidth=row['Port Speed [Mbps]']
-                    tx_bytes=row['Tx_Bytes']
-                    rx_bytes=row['Rx_Bytes']
-                    sampling_interval=row['Sample_Time[s]']
+                        bandwidth=row['Max_Throughput[Mbps]'] #Mbps
+                        queue_size=row['Max_Queue_Length']
+                        backlog_p=row['Backlog_Packets']
 
-                    if interface_name not in current_connections_map: #if the WiFi connection is new
-                        throughput=((tx_bytes+rx_bytes)*(8/sampling_interval))/1000000 #[Mbps]
-                        utilization=(throughput/bandwidth)*100 #[%]
+                        sampling_interval=row['Sample_Time[s]'] #s
 
-                        new_row={
-                            "Interface": interface_name,
-                            "AP": access_point,
-                            "Access_Port": access_port,
-                            "Connected_Devices": connected_hosts_list,
-                            "Type": "WiFi",
-                            "Bandwidth[Mbps]": bandwidth,
-                            "Raw_Data[Byte]": tx_bytes+rx_bytes,
-                            "Throughput[Mbps]": throughput,
-                            "Utilization[%]": utilization }#creates row for new connection
+                        if interface_name not in current_connections_map: #if the WiFi connection is new
+                            throughput=((tx_bytes+rx_bytes)*(8/sampling_interval))/1000000 #[Mbps]
+                            utilization=(throughput/bandwidth)*100 #[%]
 
-                        new_connections_list.append(new_row)
-                        print(f"Added new WiFi connection: {interface_name}")
+                            occupation=(backlog_p/queue_size)*100 #current occupation of WiFi AP's buffer [%]
+                            try:
+                                error_rate=(tx_errors+rx_errors)/(
+                                        tx_packets+rx_packets+tx_errors+rx_errors+tx_drops+rx_drops+cols)
+                                drop_rate=(tx_drops+rx_drops)/(
+                                        tx_packets+rx_packets+tx_errors+rx_errors+tx_drops+rx_drops+cols)
+                                cols_rate=cols/(
+                                        tx_packets+rx_packets+tx_errors+rx_errors+tx_drops+rx_drops+cols)
+                            except ZeroDivisionError:
+                                error_rate=0
+                                drop_rate=0
+                                cols_rate=0
 
-                    else: #if the WiFi connection is already registered in the DataFrame
-                        previous_data=df_connections.loc[current_connections_map[interface_name], 'Raw_Data[Byte]'] #Byte
-                        throughput=((tx_bytes+rx_bytes-previous_data)*(8/30))/1000000 #[Mbps]
-                        utilization=(throughput/bandwidth)*100 #[%]
+                            new_row={
+                                "Interface": interface_name,
+                                "AP": access_point,
+                                "Access_Port": access_port,
+                                "Connected_Devices": connected_stas_list,
+                                "Type": "WiFi",
+                                "Bandwidth[Mbps]": bandwidth,
+                                "Queue_Size": queue_size,
+                                "Backlog_Packets": backlog_p,
+                                "Backlog_Bytes": row['Backlog_Bytes'],
+                                'Tot_Packets': tx_packets+rx_packets,
+                                "Raw_Data[Byte]": tx_bytes+rx_bytes,
+                                'Tot_Errors': tx_errors+rx_errors,
+                                'Tot_Drops': tx_drops+rx_drops,
+                                'Collisions': cols,
+                                'Throughput[Mbps]': throughput,
+                                'Utilization[%]': utilization,
+                                'Occupation[%]': occupation,
+                                'Error_Rate[%]': error_rate,
+                                'Drop_Rate[%]': drop_rate,
+                                'Collision_Rate[%]': cols_rate }#creates row for new connection
 
-                        df_connections.at[current_connections_map[interface_name], 'Connected_Devices']=connected_hosts_list #updates field
-                        df_connections.loc[current_connections_map[interface_name], 'Raw_Data[Byte]']=tx_bytes+rx_bytes #updates field
-                        df_connections.loc[current_connections_map[interface_name], 'Throughput[Mbps]']=throughput #updates field
-                        df_connections.loc[current_connections_map[interface_name], 'Utilization[%]']=utilization #updates field
-                        print(f"Updated stats for WiFi connection: {interface_name}")
+                            new_connections_list.append(new_row)
+                            print(f"Added new WiFi connection: {interface_name}")
+
+                        else: #if the WiFi connection is already registered in the DataFrame
+                            previous_data=df_connections.loc[current_connections_map[interface_name], 'Raw_Data[Byte]'] #Byte
+                            previous_packets=df_connections.loc[current_connections_map[interface_name], 'Tot_Packets']
+                            previous_errors=df_connections.loc[current_connections_map[interface_name], 'Tot_Errors']
+                            previous_drops=df_connections.loc[current_connections_map[interface_name], 'Tot_Drops']
+                            previous_cols=df_connections.loc[current_connections_map[interface_name], 'Collisions']
+
+                            throughput=((tx_bytes+rx_bytes-previous_data)*(8/30))/1000000 #[Mbps]
+                            utilization=(throughput/bandwidth)*100 #[%]
+
+                            occupation=(backlog_p/queue_size)*100 #current occupation of link's endpoint buffers[%]
+                            try:
+                                error_rate=(tx_errors+rx_errors-previous_errors)/(
+                                        tx_packets+rx_packets+tx_errors+rx_errors+tx_drops+rx_drops+cols
+                                        -previous_packets-previous_errors-previous_drops-previous_cols)
+                                drop_rate=(tx_drops+rx_drops-previous_drops)/(
+                                        tx_packets+rx_packets+tx_errors+rx_errors+tx_drops+rx_drops+cols
+                                        -previous_packets-previous_errors-previous_drops-previous_cols)
+                                cols_rate=(cols-previous_cols)/(tx_packets+rx_packets+tx_errors+rx_errors+tx_drops+rx_drops+cols
+                                        -previous_packets-previous_errors-previous_drops-previous_cols)
+                            except ZeroDivisionError:
+                                error_rate=0
+                                drop_rate=0
+                                cols_rate=0
+
+                            ###Update dataframe fields
+                            df_connections.at[current_connections_map[interface_name], 'Connected_Devices']=connected_stas_list
+                            df_connections.loc[current_connections_map[interface_name], 'Backlog_Packets']=backlog_p
+                            df_connections.loc[current_connections_map[interface_name], 'Backlog_Bytes']=row['Backlog_Bytes']
+                            df_connections.loc[current_connections_map[interface_name], 'Raw_Data[Byte]']=tx_bytes+rx_bytes
+                            df_connections.loc[current_connections_map[interface_name], 'Tot_Packets']=tx_packets+rx_packets
+                            df_connections.loc[current_connections_map[interface_name], 'Tot_Errors']=tx_errors+rx_errors
+                            df_connections.loc[current_connections_map[interface_name], 'Tot_Drops']=tx_packets+rx_packets
+                            df_connections.loc[current_connections_map[interface_name], 'Collisions']=cols
+
+                            df_connections.loc[current_connections_map[interface_name], 'Throughput[Mbps]']=throughput
+                            df_connections.loc[current_connections_map[interface_name], 'Utilization[%]']=utilization
+                            df_connections.loc[current_connections_map[interface_name], 'Occupation[%]']=occupation
+                            df_connections.loc[current_connections_map[interface_name], 'Error_Rate[%]']=error_rate
+                            df_connections.loc[current_connections_map[interface_name], 'Drop Rate[%]']=drop_rate
+                            df_connections.loc[current_connections_map[interface_name], 'Collision_Rate[%]']=cols_rate
+
+                            print(f"Updated stats for WiFi connection: {interface_name}")
 
                 if new_connections_list:
                     df_connections=pd.concat([df_connections, pd.DataFrame(new_connections_list)], ignore_index=True) #adds new rows
@@ -1288,20 +1447,45 @@ def get_topology():
 
 @app.route("/topology/devices", methods=["GET"]) #exposes GET http://localhost:8080/topology/devices
 def get_ovs_devices():
+    df_all=pd.concat([df_switches, df_aps], ignore_index=True)
+    return jsonify(df_all.to_dict(orient="records")) #converts dataframe to JSON to be exposed
+
+@app.route("/topology/devices/switches", methods=["GET"]) #exposes GET http://localhost:8080/topology/devices/switches
+def get_ovs_switches():
     return jsonify(df_switches.to_dict(orient="records")) #converts dataframe to JSON to be exposed
+
+@app.route("/topology/devices/aps", methods=["GET"]) #exposes GET http://localhost:8080/topology/devices/aps
+def get_ovs_aps():
+    return jsonify(df_aps.to_dict(orient="records")) #converts dataframe to JSON to be exposed
 
 @app.route("/topology/hosts", methods=["GET"]) #exposes GET http://localhost:8080/topology/hosts
 def get_host_devices():
     return jsonify(df_hosts.to_dict(orient="records"))
 
+@app.route("/topology/stations", methods=["GET"]) #exposes GET http://localhost:8080/topology/stations
+def get_station_devices():
+    return jsonify(df_stations.to_dict(orient="records"))
+
 @app.route("/topology/ports", methods=["GET"]) #exposes GET http://localhost:8080/topology/ports
 def get_l2_ports():
+    df_all=pd.concat([df_eth_ports, df_wlan_ports], ignore_index=True)
+    return jsonify(df_all.to_dict(orient="records"))
+
+@app.route("/topology/ports/eth", methods=["GET"]) #exposes GET http://localhost:8080/topology/ports/eth
+def get_eth_ports():
     return jsonify(df_eth_ports.to_dict(orient="records"))
+
+@app.route("/topology/ports/wlan", methods=["GET"]) #exposes GET http://localhost:8080/topology/ports/wlan
+def get_wlan_ports():
+    return jsonify(df_wlan_ports.to_dict(orient="records"))
 
 @app.route("/topology/ports/<deviceId>", methods=["GET"]) #exposes GET http://localhost:8081/topology/ports/<deviceId>
 def get_ports_by_device(deviceId):
     with eth_ports_lock:
-        device_ports=df_eth_ports[df_eth_ports['OVS_Device']==deviceId] #filters only l2 ports of the specified device
+        device_eth_ports=df_eth_ports[df_eth_ports['OVS_Device']==deviceId] #filters only Ethernet ports of the specified device
+        device_wlan_ports=df_wlan_ports[df_wlan_ports['OVS_Device']==deviceId] #filters only WiFi ports of the specified device
+        device_ports=pd.concat([device_eth_ports, device_wlan_ports], ignore_index=True)
+
         if device_ports.empty:
             return jsonify({"error": "No L2 ports found for this device or device not found"}), 404
         return jsonify(device_ports.to_dict(orient="records"))
