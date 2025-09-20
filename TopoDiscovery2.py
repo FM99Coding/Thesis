@@ -10,7 +10,7 @@ import urllib.parse #correctly format URLs
 
 import pandas as pd #provide data structures (DataFrames)
 
-#Utility
+###Utility
 import sys
 import threading
 import time
@@ -48,11 +48,11 @@ df_eth_ports=pd.DataFrame(columns=['Name', 'OVS_Device', 'Type', 'Port_Num', 'MA
 df_wlan_ports=pd.DataFrame(columns=['Name', 'OVS_Device', 'Type', 'Port_Num', 'MAC', 'TX_Bytes', 'RX_Bytes',
                                     'Tx_Packets', 'Rx_Packets', 'Tx_Errors', 'Rx_Errors', 'Tx_Drops', 'Rx_Drops', 'Sample_Time[s]',
                                     'Max_Throughput[Mbps]', 'Max_Queue_Length', 'Backlog_Packets', 'Backlog_Bytes',
-                                    'WiFi_Mode', 'WiFi_Frequency[GHz]', 'WiFi_Channel', 'Bandwidth[Mbps]', 'Tx_Power[dBm]', 'Gain[dBm]',
+                                    'WiFi_Mode', 'WiFi_Frequency[GHz]', 'WiFi_Channel', 'Bandwidth[MHz]', 'Tx_Power[dBm]', 'Gain[dBm]',
                                     'SSID', 'Range[m]' 'Collisions']) #dataframe of L2 wireless ports
 
 df_links=pd.DataFrame(columns=['Name', 'Source_Device', 'Source_Port', 'Dest_Device', 'Dest_Port', 'Type',
-                               'Bandwidth[Mbps]', 'Raw_Data[Byte]', 'Throughput[Mbps]', 'Utilization[%]']) #dataframe of Eth links
+                               'Bandwidth[Mbps]', 'Raw_Data[Byte]', 'Throughput[Mbps]', 'Utilization[%]']) #dataframe of Ethernet links
 df_connections=pd.DataFrame(columns=['Interface', 'AP', 'Access_Port', 'Connected_Devices', 'Type', 'Bandwidth[Mbps]',
                                      'Raw_Data[Byte]', 'Throughput[Mbps]', 'Utilization[%]']) #dataframe of WiFi connections
 
@@ -184,7 +184,7 @@ def read_topo(onos_summary_data):
         "Num WiFi Connections": len(df_connections),
         "Num Clusters": onos_summary_data.get("sccs", 0),
         "Num Controller Instances": onos_summary_data.get("sccs", 0),
-        "Controllers": controllers_list}  # mapping data from ONOS to my app
+        "Controllers": controllers_list} #mapping data from ONOS to my app
 
 '''Populate dataframes with data about OVS devices (APs/switches) read from onos
    @param json onos_devices_data'''
@@ -197,28 +197,23 @@ def read_devices(onos_devices_data):
         datapath_description=device.get("annotations", {}).get("datapathDescription", "")
         device_type="Access Point" if datapath_description.startswith("ap") else "Switch"
 
+        device_dict={ "DPID": device.get("id"),
+                    "Name": datapath_description,
+                    "Type": device_type,
+                    "Model": f"{device.get('hw', '')} {device.get('sw', '')}".strip(),
+                    "Manufacturer": device.get("mfr"),
+                    "Control_Protocol": device.get("annotations", {}).get("protocol")}
+
         if device_type=="Switch":
-            switches_list.append({
-                "DPID": device.get("id"),
-                "Name": datapath_description,
-                "Type": device_type,
-                "Model": f"{device.get('hw', '')} {device.get('sw', '')}".strip(),
-                "Manufacturer": device.get("mfr"),
-                "Control_Protocol": device.get("annotations", {}).get("protocol")})
+            switches_list.append(device_dict)
         else: #device_type=="Access Point"
             if 'position' in device.get("annotations", {}):
                 pos=device.get("annotations", {}).get("position")
             else:
                 pos='NaN'
 
-            aps_list.append({
-                "DPID": device.get("id"),
-                "Name": datapath_description,
-                "Type": device_type,
-                "Model": f"{device.get('hw', '')} {device.get('sw', '')}".strip(),
-                "Manufacturer": device.get("mfr"),
-                "Control_Protocol": device.get("annotations", {}).get("protocol"),
-                "Position": pos})
+            device_dict["Position"]=pos
+            aps_list.append(device_dict)
 
     if switches_list:
         df_switches=pd.DataFrame(switches_list) #populates OVS switch dataframe with fetched data
@@ -244,20 +239,22 @@ def read_hosts(onos_hosts_data):
             intf='NaN'
             type="Host" if "h" in name else "Station"
 
+        host_dict={"ID": host.get("id"),
+                    "MAC": mac,
+                    "Name": name,
+                    "Type": type,
+                    "IPv4": host.get("ipAddresses", [None])[0],
+                    "Connection_Point": f"{host.get('locations', {})[0].get('elementId', '')}/"
+                                        f"{host.get('locations', {})[0].get('port')}".strip(),
+                    "Interface": intf}
+
         if type=="Host":
-            hosts_list.append({
-                "ID": host.get("id"),
-                "MAC": mac,
-                "Name": name,
-                "Type": type,
-                "IPv4": host.get("ipAddresses", [None])[0],
-                "Connection_Point": f"{host.get('locations', {})[0].get('elementId', '')}/"
-                                    f"{host.get('locations', {})[0].get('port')}".strip(),
-                "Interface": intf})
+            hosts_list.append(host_dict)
 
         else: #type=="Station"
             if "position" in host.get("annotations", {}):
                 annotation=host.get("annotations", {})
+
                 pos=annotation.get("position")
                 mode=annotation.get("wifiMode")
                 freq=annotation.get("wifiFrequency")
@@ -278,30 +275,23 @@ def read_hosts(onos_hosts_data):
                 tx_errors, rx_errors, tx_drops, rx_drops, cols=("Nan", "NaN", "Nan", "NaN", "Nan", "NaN", "Nan", "NaN",
                                                                 "NaN", "Nan", "NaN", "Nan", "NaN", "NaN", "Nan")
 
-            stas_list.append({
-                "ID": host.get("id"),
-                "MAC": mac,
-                "Name": name,
-                "Type": type,
-                "IPv4": host.get("ipAddresses", [None])[0],
-                "Connection_Point": f"{host.get('locations', {})[0].get('elementId', '')}/"
-                                    f"{host.get('locations', {})[0].get('port')}".strip(),
-                "Interface": intf,
-                "Position": pos,
-                "WiFi_Mode": mode,
-                "WiFi_Frequency[GHz]": freq,
-                "RSSI[dBm]": rssi,
-                "AP_SSID": ap_ssid,
-                "AP_Distance[m]": ap_distance,
-                "Tx_Bytes": tx_bytes,
-                "Rx_Bytes": rx_bytes,
-                "Tx_Packets": tx_packets,
-                "Rx_Packets": rx_packets,
-                "Tx_Errors": tx_errors,
-                "Rx_Errors": rx_errors,
-                "Tx_Drops": tx_drops,
-                "Rx_Drops": rx_drops,
-                "Collisions": cols})
+            host_dict.update({ "Position": pos,
+                                "WiFi_Mode": mode,
+                                "WiFi_Frequency[GHz]": freq,
+                                "RSSI[dBm]": rssi,
+                                "AP_SSID": ap_ssid,
+                                "AP_Distance[m]": ap_distance,
+                                "Tx_Bytes": tx_bytes,
+                                "Rx_Bytes": rx_bytes,
+                                "Tx_Packets": tx_packets,
+                                "Rx_Packets": rx_packets,
+                                "Tx_Errors": tx_errors,
+                                "Rx_Errors": rx_errors,
+                                "Tx_Drops": tx_drops,
+                                "Rx_Drops": rx_drops,
+                                "Collisions": cols})
+
+            stas_list.append(host_dict)
 
     if hosts_list:
         df_hosts=pd.DataFrame(hosts_list) #populates host dataframe with fetched data
@@ -353,9 +343,7 @@ def read_ports(onos_ports_data):
         else:
             max_throughput, max_queue, backlog_p, backlog_b=("Nan", "Nan", "Nan", "NaN")
 
-        if port_type=="Ethernet":
-            eth_ports_list.append({
-                "Name": port_name,
+        port_dict={ "Name": port_name,
                 "Type": port_type,
                 "OVS_Device": ovs_device,
                 "Port_Num": port_num,
@@ -372,7 +360,10 @@ def read_ports(onos_ports_data):
                 "Rx_Errors": port_stats_data.get("packetsRxErrors"),
                 "Tx_Drops": port_stats_data.get("packetsTxDropped"),
                 "Rx_Drops": port_stats_data.get("packetsRxDropped"),
-                "Sample_Time[s]": port_stats_data.get("durationSec")})
+                "Sample_Time[s]": port_stats_data.get("durationSec")}
+
+        if port_type=="Ethernet":
+            eth_ports_list.append(port_dict)
         else: #port_type=='WiFi'
             if "wifiMode" in port.get("annotations", {}):
                 annotation=port.get("annotations", {})
@@ -391,25 +382,17 @@ def read_ports(onos_ports_data):
                 mode, freq, channel, band, tx_power, gain, ssid, range, cols=("Nan", "NaN", "Nan", "NaN", "Nan", "NaN", "Nan",
                                                                               "NaN", "NaN")
 
-            wlan_ports_list.append({
-                "Name": port_name,
-                "Type": port_type,
-                "OVS_Device": ovs_device,
-                "Port_Num": port_num,
-                "MAC": port.get("annotations", {}).get("portMac"),
-                "Max_Throughput[Mbps]": max_throughput,
-                "Max_Queue_Length": max_queue,
-                "Backlog_Packets": backlog_p,
-                "Backlog_Bytes": backlog_b,
-                "Tx_Bytes": port_stats_data.get("bytesSent"),
-                "Rx_Bytes": port_stats_data.get("bytesReceived"),
-                "Tx_Packets": port_stats_data.get("packetsSent"),
-                "Rx_Packets": port_stats_data.get("packetsReceived"),
-                "Tx_Errors": port_stats_data.get("packetsTxErrors"),
-                "Rx_Errors": port_stats_data.get("packetsRxErrors"),
-                "Tx_Drops": port_stats_data.get("packetsTxDropped"),
-                "Rx_Drops": port_stats_data.get("packetsRxDropped"),
-                "Sample_Time[s]": port_stats_data.get("durationSec")})
+            port_dict.update({"WiFi_Mode": mode,
+                            "WiFi_Frequency[GHz]": freq,
+                            "WiFi_Channel": channel,
+                            "Bandwidth[MHz]": band,
+                            "Tx_Power[dBm]": tx_power,
+                            "Gain[dBm]": gain,
+                            "SSID":ssid,
+                            "Range[m]": range,
+                            "Collisions": cols})
+
+            wlan_ports_list.append(port_dict)
 
     if eth_ports_list:
         df_eth_ports=pd.DataFrame(eth_ports_list) #populates ports dataframe with fetched data
@@ -736,6 +719,7 @@ def update_stations():
                     if id not in current_id_set: #if the station device is new (not yet registered in the dataframe)
                         if "annotations" in station:
                             annotation=station.get("annotations", {})
+
                             name=annotation.get("name")
                             intf=annotation.get("interfaces")
                             pos=annotation.get("position")
@@ -793,6 +777,7 @@ def update_stations():
                                           f"{station.get('locations', {})[0].get('port')}").strip()
 
                         annotation=station.get("annotations", {})
+
                         freq=annotation.get("wifiFrequency")
                         rssi=annotation.get("RSSI[dBm]")
                         ap_ssid=annotation.get("apSSID")
@@ -833,8 +818,89 @@ def update_stations():
         except requests.exceptions.RequestException as e:
             print(f"Error updating stations list: {e}")
 
-'''Periodically update df_eth_ports DataFrame (content of endpoint http://localhost:8080/topology/ports)'''
-def update_ports():
+'''Periodically update df_eth_ports DataFrame (content of endpoint http://localhost:8080/topology/ports/eth)'''
+def update_eth_ports():
+    global df_eth_ports, df_switches, df_aps
+
+    while True:
+        time.sleep(30) #waiting interval of 30 s in between updates
+
+        try:
+            #Acquire list of L2 ports from ONOS REST endpoint
+            ports_response=requests.get(onos_ports_url, auth=onos_auth, headers=get_headers)
+            ports_response.raise_for_status()
+            onos_ports_data=ports_response.json().get("ports", [])
+
+            onos_eth_data=[]
+            for port in onos_ports_data:
+                if "eth" in port.get("annotations", {}).get("portName"):
+                    onos_eth_data.append(port)
+
+            new_ports_list=[] #list of newly discovered L2 Ethernet ports on OVS devices
+            with eth_ports_lock:
+                current_ports_map={row['Name']: row.name for index, row in df_eth_ports.iterrows()} #<name, row index> for ports in the df
+                onos_ports_map={port.get("annotations", {}).get("portName"): port for port in onos_eth_data} #<name, info> for ports seen by Onos
+
+                ports_to_remove=set(current_ports_map.keys())-set(onos_ports_map.keys()) #if ONOS does not see the Ethernet port anymore
+                if ports_to_remove: #if there are Ethernet ports to be removed
+                    df_eth_ports.set_index('Name', inplace=True) #sets column Name as DataFrame index (more efficient removal)
+                    df_eth_ports.drop(list(ports_to_remove), inplace=True) #remove DataFrame rows corresponding to stale L2 ports
+                    df_eth_ports.reset_index(inplace=True) #reset original DataFrame index
+                    print(f"Removed ports: {ports_to_remove}")
+
+                for port_name, port in onos_ports_map.items(): #for all Ethernet ports seen by ONOS
+                    port_num=port.get("port")
+                    ovs_device=port.get("element")
+
+                    if port_num=="local":
+                        continue #go to next port (ignore L2 ports towards ONOS controller instance)
+
+                    with switches_lock:
+                        device_exists=not df_switches[df_switches['DPID']==ovs_device].empty #get OVS devices were current L2 port is placed
+
+                    if not device_exists or not port.get("isEnabled"): #if the corresponding OVS device does not exist, or if the port is not configured for traffic
+                        if port_name in current_ports_map: #if current port is already registered, it has to be removed from the DataFrame
+                            df_eth_ports.drop(index=current_ports_map[port_name], inplace=True) #remove DataFrame rows corresponding to inactive ports
+                            print(f"Removed inactive/invalid port: {port_name}")
+                        continue #go to next port (if current port is new, it will not be registered in the DataFrame)
+
+                    #Fetches real-time stats about current L2 port from ONOS endpoint
+                    stats_url=f"{onos_port_stats_url}/{urllib.parse.quote(ovs_device)}/{port_num}"
+                    stats_response=requests.get(stats_url, auth=onos_auth, headers=get_headers)
+                    stats_response.raise_for_status()
+                    port_stats_data=stats_response.json().get("statistics", [{}])[0].get("ports", [{}])[0]
+
+                    if port_name not in current_ports_map: #if the L2 port is new, it has to be registered in the DataFrame
+                        port_type="WiFi" if "wlan" in port_name else "Ethernet"
+
+                        new_row={
+                            "Name": port_name,
+                            "Type": port_type,
+                            "OVS_Device": ovs_device,
+                            "Port_Num": port_num,
+                            "MAC": port.get("annotations", {}).get("portMac"),
+                            "Port Speed [Mbps]": 54 if port_type=="WiFi" else port.get("portSpeed"),
+                            "TX_Bytes": port_stats_data.get("bytesSent"),
+                            "RX_Bytes": port_stats_data.get("bytesReceived"),
+                            "Sample_Time[s]": port_stats_data.get("durationSec")} #row for the new port
+
+                        new_ports_list.append(new_row)
+                        print(f"Added new port: {port_name}")
+
+                    else: #if the port is already registered and still active
+                        df_eth_ports.loc[current_ports_map[port_name], 'TX_Bytes']=port_stats_data.get("bytesSent") #updates counter of tx bytes
+                        df_eth_ports.loc[current_ports_map[port_name], 'RX_Bytes']=port_stats_data.get("bytesReceived") #updates counter of rx bytes
+                        df_eth_ports.loc[current_ports_map[port_name], 'Sample_Time[s]']=port_stats_data.get("durationSec") #updates sampling time record
+                        print(f"Updated stats for port: {port_name}")
+
+                if new_ports_list:
+                    df_eth_ports=pd.concat([df_eth_ports, pd.DataFrame(new_ports_list)], ignore_index=True) #adds rows to the DataFrame
+
+        except requests.exceptions.RequestException as e:
+            print(f"Error updating ports list: {e}")
+
+'''Periodically update df_wlan_ports DataFrame (content of endpoint http://localhost:8080/topology/ports/wlan)'''
+def update_wlan_ports():
     global df_eth_ports, df_switches
 
     while True:
