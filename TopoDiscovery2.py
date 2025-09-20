@@ -257,21 +257,22 @@ def read_hosts(onos_hosts_data):
 
         else: #type=="Station"
             if "position" in host.get("annotations", {}):
-                pos=host.get("annotations", {}).get("position")
-                mode=host.get("annotations", {}).get("wifiMode")
-                freq=host.get("annotations", {}).get("wifiFrequency")
-                rssi=host.get("annotations", {}).get("RSSI[dBm]")
-                ap_ssid=host.get("annotations", {}).get("apSSID")
-                ap_distance=host.get("annotations", {}).get("distanceFromAp")
-                tx_bytes=host.get("annotations", {}).get("txBytes")
-                rx_bytes=host.get("annotations", {}).get("rxBytes")
-                tx_packets=host.get("annotations", {}).get("txPackets")
-                rx_packets=host.get("annotations", {}).get("rxPackets")
-                tx_errors=host.get("annotations", {}).get("txErrors")
-                rx_errors=host.get("annotations", {}).get("rxErrors")
-                tx_drops=host.get("annotations", {}).get("txDropped")
-                rx_drops=host.get("annotations", {}).get("rxDropped")
-                cols=host.get("annotations", {}).get("collisions")
+                annotation=host.get("annotations", {})
+                pos=annotation.get("position")
+                mode=annotation.get("wifiMode")
+                freq=annotation.get("wifiFrequency")
+                rssi=annotation.get("RSSI")
+                ap_ssid=annotation.get("apSSID")
+                ap_distance=annotation.get("distanceFromAp")
+                tx_bytes=annotation.get("txBytes")
+                rx_bytes=annotation.get("rxBytes")
+                tx_packets=annotation.get("txPackets")
+                rx_packets=annotation.get("rxPackets")
+                tx_errors=annotation.get("txErrors")
+                rx_errors=annotation.get("rxErrors")
+                tx_drops=annotation.get("txDropped")
+                rx_drops=annotation.get("rxDropped")
+                cols=annotation.get("collisions")
             else:
                 pos, mode, freq, rssi, ap_ssid, ap_distance, tx_bytes, rx_bytes, tx_packets, rx_packets,\
                 tx_errors, rx_errors, tx_drops, rx_drops, cols=("Nan", "NaN", "Nan", "NaN", "Nan", "NaN", "Nan", "NaN",
@@ -313,51 +314,105 @@ def read_hosts(onos_hosts_data):
 def read_ports(onos_ports_data):
     global df_eth_ports, df_wlan_ports
 
-    eth_ports_list = []
-    wlan_ports_list = []
-    for port in onos_ports_data:  # for every L2 port
-        port_name = port.get("annotations", {}).get("portName")
-        port_num = port.get("port")  # port number
+    eth_ports_list=[]
+    wlan_ports_list=[]
+    for port in onos_ports_data: #for every L2 port
+        port_name=port.get("annotations", {}).get("portName")
+        port_num=port.get("port") #port number
 
-        if port_num == "local":  # control plane port (connection towards ONOS controller instance)
-            continue  # go to next port (save info only about data plane ports)
+        if port_num=="local": #control plane port (connection towards ONOS controller instance)
+            continue #go to next port (save info only about data plane ports)
 
-        port_type = "WiFi" if "wlan" in port_name else "Ethernet"
+        port_type="WiFi" if "wlan" in port_name else "Ethernet"
 
-        ovs_device = port.get("element")  # OVS switch/AP on which the L2 port is located
-        if port_type == "Ethernet":
-            device = df_switches[
-                df_switches['DPID'] == ovs_device]  # extract the target device from the OVS devices dataframe
+        ovs_device=port.get("element") #OVS switch/AP on which the L2 port is located
+        if port_type=="Ethernet":
+            device=df_switches[df_switches['DPID']==ovs_device] #extract the target device from the OVS switches dataframe
         else:
-            device = df_aps[df_aps['DPID'] == port_name]
+            device=df_aps[df_aps['DPID']==port_name] #extract the target device from the OVS APs dataframe
 
-        if device.empty:  # if the OVS device of the current port cannot be found in the memorized data
+        if device.empty: #if the OVS device of the current port cannot be found in the memorized data
             print(f"Error: unable to find device {ovs_device} for port {port_name}")
-            continue  # go to next port
-        if not port.get("isEnabled"):  # if this port is not currently configured to allow traffic
-            continue  # go to next port
+            continue #go to next port
+        if not port.get("isEnabled"): #if this port is not currently configured to allow traffic
+            continue #go to next port
 
-        # Retrieves port's statistics from ONOS REST-API
-        stats_url = f"{onos_port_stats_url}/{urllib.parse.quote(ovs_device)}/{port_num}"
-        stats_response = requests.get(stats_url, auth=onos_auth, headers=get_headers)  # fetches data from ONOS endpoint
-        stats_response.raise_for_status()  # raises HTTP exception
-        port_stats_data = stats_response.json().get("statistics", [{}])[0].get("ports", [{}])[0]
+        #Retrieves port's statistics from ONOS REST-API
+        stats_url=f"{onos_port_stats_url}/{urllib.parse.quote(ovs_device)}/{port_num}"
+        stats_response=requests.get(stats_url, auth=onos_auth, headers=get_headers)  # fetches data from ONOS endpoint
+        stats_response.raise_for_status() #raises HTTP exception
+        port_stats_data=stats_response.json().get("statistics", [{}])[0].get("ports", [{}])[0]
 
-        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        if "maxThroughput" in port.get("annotations", {}):
+            annotation=port.get("annotations", {})
 
-        eth_ports_list.append({
-            "Name": port_name,
-            "Type": port_type,
-            "OVS_Device": ovs_device,
-            "Port_Num": port_num,
-            "MAC": port.get("annotations", {}).get("portMac"),
-            "Port Speed [Mbps]": 54 if port_type == "WiFi" else port.get("portSpeed"),
-            "TX_Bytes": port_stats_data.get("bytesSent"),
-            "RX_Bytes": port_stats_data.get("bytesReceived"),
-            "Sample_Time[s]": port_stats_data.get("durationSec")})
+            max_throughput=annotation.get("maxThroughput")
+            max_queue=annotation.get("maxQueueLength")
+            backlog_p=annotation.get("backlogPackets")
+            backlog_b=annotation.get("backlogBytes")
+        else:
+            max_throughput, max_queue, backlog_p, backlog_b=("Nan", "Nan", "Nan", "NaN")
+
+        if port_type=="Ethernet":
+            eth_ports_list.append({
+                "Name": port_name,
+                "Type": port_type,
+                "OVS_Device": ovs_device,
+                "Port_Num": port_num,
+                "MAC": port.get("annotations", {}).get("portMac"),
+                "Max_Throughput[Mbps]": max_throughput,
+                "Max_Queue_Length": max_queue,
+                "Backlog_Packets": backlog_p,
+                "Backlog_Bytes": backlog_b,
+                "Tx_Bytes": port_stats_data.get("bytesSent"),
+                "Rx_Bytes": port_stats_data.get("bytesReceived"),
+                "Tx_Packets": port_stats_data.get("packetsSent"),
+                "Rx_Packets": port_stats_data.get("packetsReceived"),
+                "Tx_Errors": port_stats_data.get("packetsTxErrors"),
+                "Rx_Errors": port_stats_data.get("packetsRxErrors"),
+                "Tx_Drops": port_stats_data.get("packetsTxDropped"),
+                "Rx_Drops": port_stats_data.get("packetsRxDropped"),
+                "Sample_Time[s]": port_stats_data.get("durationSec")})
+        else: #port_type=='WiFi'
+            if "wifiMode" in port.get("annotations", {}):
+                annotation=port.get("annotations", {})
+
+                mode=annotation.get("wifiMode")
+                freq=annotation.get("wifiFrequency")
+                channel=annotation.get("wifiChannel")
+                band=annotation.get("Bandwidth")
+                tx_power=annotation.get("txPower")
+                gain=annotation.get("gain")
+                ssid=annotation.get("ssid")
+                range=annotation.get("range")
+                cols=annotation.get("collisions")
+
+            else:
+                mode, freq, channel, band, tx_power, gain, ssid, range, cols=("Nan", "NaN", "Nan", "NaN", "Nan", "NaN", "Nan",
+                                                                              "NaN", "NaN")
+
+            wlan_ports_list.append({
+                "Name": port_name,
+                "Type": port_type,
+                "OVS_Device": ovs_device,
+                "Port_Num": port_num,
+                "MAC": port.get("annotations", {}).get("portMac"),
+                "Max_Throughput[Mbps]": max_throughput,
+                "Max_Queue_Length": max_queue,
+                "Backlog_Packets": backlog_p,
+                "Backlog_Bytes": backlog_b,
+                "Tx_Bytes": port_stats_data.get("bytesSent"),
+                "Rx_Bytes": port_stats_data.get("bytesReceived"),
+                "Tx_Packets": port_stats_data.get("packetsSent"),
+                "Rx_Packets": port_stats_data.get("packetsReceived"),
+                "Tx_Errors": port_stats_data.get("packetsTxErrors"),
+                "Rx_Errors": port_stats_data.get("packetsRxErrors"),
+                "Tx_Drops": port_stats_data.get("packetsTxDropped"),
+                "Rx_Drops": port_stats_data.get("packetsRxDropped"),
+                "Sample_Time[s]": port_stats_data.get("durationSec")})
 
     if eth_ports_list:
-        df_eth_ports = pd.DataFrame(eth_ports_list)  # populates ports dataframe with fetched data
+        df_eth_ports=pd.DataFrame(eth_ports_list) #populates ports dataframe with fetched data
 
 '''Populate dataframes with data about Ethernet links between OVS devices read from onos
    @param json onos_links_data'''
@@ -680,23 +735,24 @@ def update_stations():
 
                     if id not in current_id_set: #if the station device is new (not yet registered in the dataframe)
                         if "annotations" in station:
-                            name=station.get("annotations", {}).get("name")
-                            intf=station.get("annotations", {}).get("interfaces")
-                            pos=station.get("annotations", {}).get("position")
-                            mode=station.get("annotations", {}).get("wifiMode")
-                            freq=station.get("annotations", {}).get("wifiFrequency")
-                            rssi=station.get("annotations", {}).get("RSSI[dBm]")
-                            ap_ssid=station.get("annotations", {}).get("apSSID")
-                            ap_distance=station.get("annotations", {}).get("distanceFromAp")
-                            tx_bytes=station.get("annotations", {}).get("txBytes")
-                            rx_bytes=station.get("annotations", {}).get("rxBytes")
-                            tx_packets=station.get("annotations", {}).get("txPackets")
-                            rx_packets=station.get("annotations", {}).get("rxPackets")
-                            tx_errors=station.get("annotations", {}).get("txErrors")
-                            rx_errors=station.get("annotations", {}).get("rxErrors")
-                            tx_drops=station.get("annotations", {}).get("txDropped")
-                            rx_drops=station.get("annotations", {}).get("rxDropped")
-                            cols=station.get("annotations", {}).get("collisions")
+                            annotation=station.get("annotations", {})
+                            name=annotation.get("name")
+                            intf=annotation.get("interfaces")
+                            pos=annotation.get("position")
+                            mode=annotation.get("wifiMode")
+                            freq=annotation.get("wifiFrequency")
+                            rssi=annotation.get("RSSI[dBm]")
+                            ap_ssid=annotation.get("apSSID")
+                            ap_distance=annotation.get("distanceFromAp")
+                            tx_bytes=annotation.get("txBytes")
+                            rx_bytes=annotation.get("rxBytes")
+                            tx_packets=annotation.get("txPackets")
+                            rx_packets=annotation.get("rxPackets")
+                            tx_errors=annotation.get("txErrors")
+                            rx_errors=annotation.get("rxErrors")
+                            tx_drops=annotation.get("txDropped")
+                            rx_drops=annotation.get("rxDropped")
+                            cols=annotation.get("collisions")
                         else:
                             name=mac_to_name(station.get("mac"))
                             intf, pos, mode, freq, rssi, ap_ssid, ap_distance, tx_bytes, rx_bytes, tx_packets, rx_packets, \
@@ -735,19 +791,21 @@ def update_stations():
                     else: #if the station device is not new
                         connection_point=(f"{station.get('locations', {})[0].get('elementId', '')}/"
                                           f"{station.get('locations', {})[0].get('port')}").strip()
-                        freq=station.get("annotations", {}).get("wifiFrequency")
-                        rssi=station.get("annotations", {}).get("RSSI[dBm]")
-                        ap_ssid=station.get("annotations", {}).get("apSSID")
-                        ap_distance=station.get("annotations", {}).get("distanceFromAp")
-                        tx_bytes=station.get("annotations", {}).get("txBytes")
-                        rx_bytes=station.get("annotations", {}).get("rxBytes")
-                        tx_packets=station.get("annotations", {}).get("txPackets")
-                        rx_packets=station.get("annotations", {}).get("rxPackets")
-                        tx_errors=station.get("annotations", {}).get("txErrors")
-                        rx_errors=station.get("annotations", {}).get("rxErrors")
-                        tx_drops=station.get("annotations", {}).get("txDropped")
-                        rx_drops=station.get("annotations", {}).get("rxDropped")
-                        cols=station.get("annotations", {}).get("collisions")
+
+                        annotation=station.get("annotations", {})
+                        freq=annotation.get("wifiFrequency")
+                        rssi=annotation.get("RSSI[dBm]")
+                        ap_ssid=annotation.get("apSSID")
+                        ap_distance=annotation.get("distanceFromAp")
+                        tx_bytes=annotation.get("txBytes")
+                        rx_bytes=annotation.get("rxBytes")
+                        tx_packets=annotation.get("txPackets")
+                        rx_packets=annotation.get("rxPackets")
+                        tx_errors=annotation.get("txErrors")
+                        rx_errors=annotation.get("rxErrors")
+                        tx_drops=annotation.get("txDropped")
+                        rx_drops=annotation.get("rxDropped")
+                        cols=annotation.get("collisions")
 
                         station_row=df_stations['ID']==id #filter to get dataframe row corresponding to current station
 
