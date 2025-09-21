@@ -10,7 +10,7 @@ import urllib.parse #correctly format URLs
 
 import pandas as pd #provide data structures (DataFrames)
 
-#Utility
+###Utility
 import sys
 import threading
 import time
@@ -198,7 +198,7 @@ def handle_host_changes():
         time.sleep(30) #waiting interval of 30 s in between updates
 
         try:
-            #Acquire list of host devices from ONOS REST endpoint
+            ###Acquire list of host devices from ONOS REST endpoint
             hosts_response=requests.get(onos_hosts_url, auth=onos_auth, headers=headers)
             hosts_response.raise_for_status()
             onos_hosts_data=hosts_response.json().get("hosts", [])
@@ -267,7 +267,7 @@ def ecmp_routing(source, destination):
     src_ipv4=source.IPv4 #get IPv4 source address
     dst_ipv4=destination.IPv4 #get IPv4 destination address
 
-    #URL to request ONOS least-cost paths between source and destination
+    ###URL to request ONOS least-cost paths between source and destination
     encoded_source=urllib.parse.quote(source.ID, safe='')
     encoded_destination=urllib.parse.quote(destination.ID, safe='')
     paths_url=f"{onos_paths_url}/{encoded_source}/{encoded_destination}"
@@ -284,7 +284,7 @@ def ecmp_routing(source, destination):
         print(f"Found {len(paths_data)} least-cost paths from {src_mac} to {dst_mac}")
         print(f"Cost: {paths_data[0].get('cost')}")
 
-        #Hash-based mod-N selection to choose a single path among redundant equal-cost alternatives
+        ###Hash-based mod-N selection to choose a single path among redundant equal-cost alternatives
         hash_val=hash(f"{src_mac}{src_ipv4}{dst_mac}{dst_ipv4}")
         selected_path_index=hash_val%len(paths_data)
         selected_path=paths_data[selected_path_index]
@@ -352,7 +352,7 @@ def install_flow_rule(device_id, rule_type, src_mac=None, dst_mac=None, src_ipv4
         "selector": {
             "criteria": []}} #JSON-formatted OpenFlow rule
 
-    #defining rule's match
+    ###defining rule's match
     if rule_type=="ARP":
         flow_rule["selector"]["criteria"].append({"type": "ETH_TYPE", "ethType": "0x806"})
     if rule_type=="IPv4":
@@ -384,7 +384,7 @@ def get_paths():
 if __name__=="__main__":
     fetch_data_from_onos() #get data from ONOS
 
-    #Debugging
+    ###Debugging
     for device in devices:
         print(device)
     print(f"\n")
@@ -397,7 +397,7 @@ if __name__=="__main__":
         print(row.ID, row.MAC, row.IPv4, row.Connection_Point)
     print(f"\n")
 
-    #Starting threads for updating routing in response network changes
+    ###Starting threads for updating routing in response network changes
     ovs_link_changes=threading.Thread(target=handle_ovs_link_changes, daemon=True)
     host_changes=threading.Thread(target=handle_host_changes, daemon=True)
 

@@ -6,9 +6,10 @@
                               [--isolation] Optional: prevent communication between stations associated to the same AP without an
                                                       explicit OpenFlow rule
                               [--test_net/--test_sw/--test_ap/--test_h/--test_sta/--test_as] Optional: run network deployment tests"""
+import multiprocessing
 
 #################################################################################################################Imports
-#Network Emulation
+####Network Emulation
 from mn_wifi.net import Mininet_wifi
 from mininet.log import setLogLevel, info
 from mn_wifi.cli import CLI
@@ -21,18 +22,18 @@ from mininet.link import TCLink #Ethernet links emulation
 from mn_wifi.link import wmediumd #WiFi connections emulation
 from mn_wifi.wmediumdConnector import interference #WiFi connections emulation
 
-#ONOS REST API interaction
+####ONOS REST API interaction
 import json
 import requests
 
-#Utility
+####Utility
 import sys
 import math
 import time
 import threading
 
 ########################################################################################################Global Variables
-#Network Parameters
+###Network Parameters
 k=4 #number of herds of Fat-Tree topology
 eth_bw=1000 #bandwidth of Ethernet links [Mbps]
 max_queue=1000 #number of packets that can be queued on an L2 interface (both Ethernet and WiFi)
@@ -52,12 +53,14 @@ x1=10.0 #x coordinate for first AP and first pair of stations [m]
 PR_REF=-20.0 #mimimum rx power received from nearest AP [dBm]
 PR_NEI=-40.0 #mimimum rx power received from neighbor AP [dBm]
 
-#Data Structures
+###Data Structures
 coreSw={} #<switch_name, OVSKernelSwitch> for every core level OVS switch
 aggSw={} #<switch_name, OVSKernelSwitch> for every aggregation level OVS switch
 edgeAP={} #<AP_name, OVSKernelAP> for every edge level OVS AP
 hosts={} #<host_name, Host> for every host device
 stations={} #<station_name, Station> for every station device
+
+mininet_lock=threading.Lock() #lock to avoid race condition when issuing cmd within threads
 
 ###Exposed ONOS REST-API endpoints
 onos_network_conf_url="http://localhost:8181/onos/v1/network/configuration"
@@ -85,7 +88,7 @@ def topology(args):
     global coreSw, aggSw, edgeAP, hosts, stations
     global channels, z_ap, y_ap, z_sta, y_sta, z_sta, x1, dx
 
-    #Indexes (each node in the topology is univocally identified by a 3-tuple of indexes)
+    ###Indexes (each node in the topology is univocally identified by a 3-tuple of indexes)
     herds=range(0, k) #herds are indexed 0 to k-1
     core_sws=range(1, (k//2)+1) #subset of core switches connected to a unique group of aggregation switches (indexed 1 to k/2)
     agg_sws=range((k//2), k) #aggregation switches in a herd are indexed k/2 to k-1
@@ -108,7 +111,7 @@ def topology(args):
 
     info("************Creating Network Nodes**********\n")
 
-    #Add core switches to the topology (for each core switch, we add a host directly connected to it)
+    ###Add core switches to the topology (for each core switch, we add a host directly connected to it)
     for a in agg_sws: #for all aggregation switches in a herd
         c_index=a-(k//2)+1 #each agg switch in the herd connects to a distinct group of core switches
 
@@ -128,10 +131,10 @@ def topology(args):
 
     count_aps=0 #counter of all OVS APs in the network
 
-    #Create herds
+    ###Create herds
     for p in herds: #for every herd
 
-        #Add aggregation switches to the current herd (for each agg switch, we add a host directly connected to it)
+        ###Add aggregation switches to the current herd (for each agg switch, we add a host directly connected to it)
         for a in agg_sws: #for all aggregation switches in the current herd
             agg_name=get_name(p, a, 1) #aggregation switch's name "sw[p][a][1]"
             agg_dpid=get_dpid(p, a, 1) #get switch's DPID with the same 3-tuple
@@ -151,7 +154,7 @@ def topology(args):
                 net.addLink(node1=aggSw[agg_name], node2=coreSw[core_name], port1=(k//2)+c, port2=p+1,
                             cls=TCLink, bw=eth_bw, max_queue_size=max_queue) #adds core switch-agg switch connection
 
-        #Add edge APs to the current herd
+        ###Add edge APs to the current herd
         for ap in edge_aps: #for every edge AP in the current herd
             ap_name=get_name(p, ap, 1) #edge AP's name "ap[p][ap][1]"
             ap_dpid=get_dpid(p, ap, 1) #get AP's DPID with the same 3-tuple
@@ -161,7 +164,7 @@ def topology(args):
                                                ssid=f"ssid-{ap_name}", channel=ap_channel,
                                                position=ap_pos) #adds OVS AP
 
-            #Each AP is directly connected to a Host device via Ethernet
+            ###Each AP is directly connected to a Host device via Ethernet
             host_name=get_name(p, ap, stas[-1]+1) #name of host directly connected to the OVS AP
             host_mac=get_MAC(p, ap, stas[-1]+1) #get host's MAC from the same 3-tuple
             host_ipv4=get_IPv4(p, ap, stas[-1]+1) #get host's IPv4 from the same 3-tuple
@@ -169,7 +172,7 @@ def topology(args):
 
             count_stas=0 #counter of stations connected to current AP
 
-            #Adds stations connected to the current OVS AP
+            ###Adds stations connected to the current OVS AP
             for sta in stas: #for every station connected to the current OVS AP
                 station_name=get_name(p, ap, sta) #station's name "sta[p][ap][sta]"
                 station_mac=get_MAC(p, ap, sta) #get station MAC address using the same 3-tuple
@@ -187,7 +190,7 @@ def topology(args):
     net.configureWifiNodes() #configure and connect L2 wireless interfaces on stations and APs
     info(f"\n")
 
-    #establishing Ethernet connections between OVS APs and OVS agg switches
+    ###Establishing Ethernet connections between OVS APs and OVS agg switches
     for p in herds: #for every herd
         for ap in edge_aps: #for every edge AP in the current herd
             ap_name=get_name(p, ap, 1) #edge AP's name "ap[p][ap][1]"
@@ -197,7 +200,7 @@ def topology(args):
                 net.addLink(node1=edgeAP[ap_name], node2=aggSw[agg_name], port1=a, port2=ap+1,
                             cls=TCLink, bw=eth_bw, max_queue_size=max_queue) #adds edge AP-agg switch connection
 
-            #Establish Ethernet connection between current OVS AP and target host device
+            ###Establish Ethernet connection between current OVS AP and target host device
             host_name=get_name(p, ap, stas[-1]+1) #name of host directly connected to the OVS AP
             net.addLink(node1=edgeAP[ap_name], node2=hosts[host_name], port1=k, port2=1,
                         cls=TCLink, bw=eth_bw, max_queue_size=max_queue) #adds edge AP-host connection
@@ -253,7 +256,7 @@ def trigger_hosts():
     target1='sta002' #host/station device to be pinged
     target2='h511' #host/station device to be pinged
 
-    #Inject traffic (ping messages) from network's hosts/stations
+    ###Inject traffic (ping messages) from network's hosts/stations
     for host in net.hosts:
         net.ping([host, net.getNodeByName(target1)])
     for sta in net.stations:
@@ -324,7 +327,7 @@ def annotate_aps(flag=False):
     payload={"devices": aps_cfg}
     #print(f"{payload}\n")
 
-    #POST request on ONOS Rest API to annotate additional info
+    ###POST request on ONOS Rest API to annotate additional info
     response=requests.post(onos_network_conf_url, auth=onos_auth, headers=post_headers, data=json.dumps(payload))
 
     if response.status_code in [200, 201]:
@@ -340,7 +343,7 @@ def annotate_aps(flag=False):
    -> maxThroughput
    @param Bool flag (True if the function is called as thread target)'''
 def annotate_eth_ports(flag=False):
-    global net, onos_network_conf_url, onos_auth, post_headers
+    global net, onos_network_conf_url, onos_auth, post_headers, mininet_lock
 
     ports_cfg={}
 
@@ -352,8 +355,9 @@ def annotate_eth_ports(flag=False):
             max_throughput=port.params['bw']
             max_queue=port.params['max_queue_size']
 
-            out_p=sw.cmd(f"tc -s qdisc show dev {port.name} | grep -oP 'backlog\\s+\\S+\\s+\\K\\d+(?=p)' | head -n1")
-            out_b=sw.cmd(f"tc -s qdisc show dev {port.name} | grep -oP 'backlog\\s+\\K\\d+(?=b)' | head -n1")
+            with mininet_lock:
+                out_p=sw.cmd(f"tc -s qdisc show dev {port.name} | grep -oP 'backlog\\s+\\S+\\s+\\K\\d+(?=p)' | head -n1")
+                out_b=sw.cmd(f"tc -s qdisc show dev {port.name} | grep -oP 'backlog\\s+\\K\\d+(?=b)' | head -n1")
 
             annotations={ #additional data for Ethernet Ports
                 "entries": {
@@ -374,8 +378,9 @@ def annotate_eth_ports(flag=False):
             max_throughput=port.params['bw']
             max_queue=port.params['max_queue_size']
 
-            out_p=ap.cmd(f"tc -s qdisc show dev {port.name} | grep -oP 'backlog\\s+\\S+\\s+\\K\\d+(?=p)' | head -n1")
-            out_b=ap.cmd(f"tc -s qdisc show dev {port.name} | grep -oP 'backlog\\s+\\K\\d+(?=b)' | head -n1")
+            with mininet_lock:
+                out_p=ap.cmd(f"tc -s qdisc show dev {port.name} | grep -oP 'backlog\\s+\\S+\\s+\\K\\d+(?=p)' | head -n1")
+                out_b=ap.cmd(f"tc -s qdisc show dev {port.name} | grep -oP 'backlog\\s+\\K\\d+(?=b)' | head -n1")
 
             annotations={ #additional data for Ethernet Ports
                 "entries": {
@@ -391,7 +396,7 @@ def annotate_eth_ports(flag=False):
     payload={"ports": ports_cfg}
     #print(f"{payload}\n")
 
-    #POST request on ONOS Rest API to annotate additional info
+    ###POST request on ONOS Rest API to annotate additional info
     response=requests.post(onos_network_conf_url, auth=onos_auth, headers=post_headers, data=json.dumps(payload))
 
     if response.status_code in [200, 201]:
@@ -416,17 +421,21 @@ def annotate_eth_ports(flag=False):
    -> Collisions
    @param Bool flag (True if the function is called as thread target)'''
 def annotate_wlan_ports(flag=False):
-    global net, onos_network_conf_url, onos_auth, post_headers
+    global net, onos_network_conf_url, onos_auth, post_headers, mininet_lock
 
     wports_cfg={}
 
     for ap in net.aps:
         for wport in ap.wports:
             max_throughput=wport.node.params['txrate']
-            max_queue=ap.cmd(f"tc -s qdisc show dev {wport.name} | grep -oP 'limit\\s+\\K\\d+(?=p)' | head -n1")
 
-            out_p=ap.cmd(f"tc -s qdisc show dev {wport.name} | grep -oP 'backlog\\s+\\S+\\s+\\K\\d+(?=p)' | head -n1")
-            out_b=ap.cmd(f"tc -s qdisc show dev {wport.name} | grep -oP 'backlog\\s+\\K\\d+(?=b)' | head -n1")
+            with mininet_lock:
+                max_queue=ap.cmd(f"tc -s qdisc show dev {wport.name} | grep -oP 'limit\\s+\\K\\d+(?=p)' | head -n1")
+
+                out_p=ap.cmd(f"tc -s qdisc show dev {wport.name} | grep -oP 'backlog\\s+\\S+\\s+\\K\\d+(?=p)' | head -n1")
+                out_b=ap.cmd(f"tc -s qdisc show dev {wport.name} | grep -oP 'backlog\\s+\\K\\d+(?=b)' | head -n1")
+
+                out_col=ap.cmd(f"cat /sys/class/net/{wport.name}/statistics/collisions")
 
             tx_power=wport.node.get_txpower(wport)
             gain=wport.node.wintfs[0].antennaGain
@@ -436,8 +445,6 @@ def annotate_wlan_ports(flag=False):
             freq=wport.node.wintfs[0].freq
             channel=wport.node.params['channel']
             bw=wport.node.params['band']
-
-            out_col=ap.cmd(f"cat /sys/class/net/{wport.name}/statistics/collisions")
 
             annotations={ #additional data for Ethernet Ports
                 "entries": {
@@ -462,7 +469,7 @@ def annotate_wlan_ports(flag=False):
     payload={"ports": wports_cfg}
     #print(f"{payload}\n")
 
-    #POST request on ONOS Rest API to annotate additional info
+    ###POST request on ONOS Rest API to annotate additional info
     response=requests.post(onos_network_conf_url, auth=onos_auth, headers=post_headers, data=json.dumps(payload))
 
     if response.status_code in [200, 201]:
@@ -499,7 +506,7 @@ def annotate_hosts(flag=False):
     payload={"hosts": hosts_cfg}
     #print(f"{payload}\n")
 
-    #POST request on ONOS Rest API to annotate additional info
+    ###POST request on ONOS Rest API to annotate additional info
     response=requests.post(onos_network_conf_url, auth=onos_auth, headers=post_headers, data=json.dumps(payload))
 
     if response.status_code in [200, 201]:
@@ -529,7 +536,7 @@ def annotate_hosts(flag=False):
    -> Collisions
    @param Bool flag (True if the function is called as thread target)'''
 def annotate_stations(flag=False):
-    global net, onos_network_conf_url, onos_auth, post_headers
+    global net, onos_network_conf_url, onos_auth, post_headers, mininet_lock
 
     stas_cfg={} #new host data
 
@@ -538,17 +545,19 @@ def annotate_stations(flag=False):
         type="Station"
         interfaces=[f"{wport.name[-1]}:{wport.name}" for wport in sta.wports]
 
-        out_txb=sta.cmd(f"cat /sys/class/net/{sta.wintfs[0].name}/statistics/tx_bytes")
-        out_rxb=sta.cmd(f"cat /sys/class/net/{sta.wintfs[0].name}/statistics/rx_bytes")
-        out_txp=sta.cmd(f"cat /sys/class/net/{sta.wintfs[0].name}/statistics/tx_packets")
-        out_rxp=sta.cmd(f"cat /sys/class/net/{sta.wintfs[0].name}/statistics/rx_packets")
-        out_txe=sta.cmd(f"cat /sys/class/net/{sta.wintfs[0].name}/statistics/tx_errors")
-        out_rxe=sta.cmd(f"cat /sys/class/net/{sta.wintfs[0].name}/statistics/rx_errors")
-        out_txd=sta.cmd(f"cat /sys/class/net/{sta.wintfs[0].name}/statistics/tx_dropped")
-        out_rxd=sta.cmd(f"cat /sys/class/net/{sta.wintfs[0].name}/statistics/rx_dropped")
-        out_col=sta.cmd(f"cat /sys/class/net/{sta.wintfs[0].name}/statistics/collisions")
+        with mininet_lock:
+            out_txb=sta.cmd(f"cat /sys/class/net/{sta.wintfs[0].name}/statistics/tx_bytes")
+            out_rxb=sta.cmd(f"cat /sys/class/net/{sta.wintfs[0].name}/statistics/rx_bytes")
+            out_txp=sta.cmd(f"cat /sys/class/net/{sta.wintfs[0].name}/statistics/tx_packets")
+            out_rxp=sta.cmd(f"cat /sys/class/net/{sta.wintfs[0].name}/statistics/rx_packets")
+            out_txe=sta.cmd(f"cat /sys/class/net/{sta.wintfs[0].name}/statistics/tx_errors")
+            out_rxe=sta.cmd(f"cat /sys/class/net/{sta.wintfs[0].name}/statistics/rx_errors")
+            out_txd=sta.cmd(f"cat /sys/class/net/{sta.wintfs[0].name}/statistics/tx_dropped")
+            out_rxd=sta.cmd(f"cat /sys/class/net/{sta.wintfs[0].name}/statistics/rx_dropped")
+            out_col=sta.cmd(f"cat /sys/class/net/{sta.wintfs[0].name}/statistics/collisions")
 
-        out_ap=sta.cmd(f"iw dev {sta.wintfs[0].name} link | grep -oP '(?<=SSID:\\\\s).*'")
+            out_ap=sta.cmd(f"iw dev {sta.wintfs[0].name} link | grep -oP '(?<=SSID:\\\\s).*'")
+
         if out_ap.strip():
             ssid_name=out_ap.strip()
             distance=net.get_distance(sta, net.getNodeByName(out_ap.strip().split("ssid-")[-1]))
@@ -584,7 +593,7 @@ def annotate_stations(flag=False):
     payload={"hosts": stas_cfg}
     #print(f"{payload}\n")
 
-    #POST request on ONOS Rest API to annotate additional info
+    ###POST request on ONOS Rest API to annotate additional info
     response=requests.post(onos_network_conf_url, auth=onos_auth, headers=post_headers, data=json.dumps(payload))
 
     if response.status_code in [200, 201]:
@@ -596,31 +605,41 @@ def annotate_stations(flag=False):
 #################################################################################################Thread Target Functions
 '''Periodically update annotations on OVS APs'''
 def update_aps():
-    while True:
+    global stop_event
+
+    while not stop_event.is_set():
         time.sleep(15) #waiting interval of 15 s in between updates
         annotate_aps(flag=True)
 
 '''Periodically update annotations on Ethernet Ports'''
 def update_eth_ports():
-    while True:
+    global stop_event
+
+    while not stop_event.is_set():
         time.sleep(15) #waiting interval of 15 s in between updates
         annotate_eth_ports(flag=True)
 
 '''Periodically update annotations on WiFi Ports'''
 def update_wlan_ports():
-    while True:
+    global stop_event
+
+    while not stop_event.is_set():
         time.sleep(15) #waiting interval of 15 s in between updates
         annotate_wlan_ports(flag=True)
 
 '''Periodically update annotations on host devices'''
 def update_hosts():
-    while True:
+    global stop_event
+
+    while not stop_event.is_set():
         time.sleep(15) #waiting interval of 15 s in between updates
         annotate_hosts(flag=True)
 
 '''Periodically update annotations on station devices'''
 def update_stations():
-    while True:
+    global stop_event
+
+    while not stop_event.is_set():
         time.sleep(15) #waiting interval of 15 s in between updates
         annotate_stations(flag=True)
 
@@ -670,7 +689,7 @@ def test_switches():
             print(f'L2 Ethernet Port: {port.name} - Type: {type(port)}')
             print(f'Params: {port.params}')
 
-            #Port Stats
+            ###Port Stats
             out_txb=sw.cmd(f"cat /sys/class/net/{port.name}/statistics/tx_bytes")
             out_rxb=sw.cmd(f"cat /sys/class/net/{port.name}/statistics/rx_bytes")
             out_txp=sw.cmd(f"cat /sys/class/net/{port.name}/statistics/tx_packets")
@@ -713,7 +732,7 @@ def test_aps():
             print(f'L2 Ethernet Port: {port.name} - Type: {type(port)}')
             print(f'Params: {port.params}')
 
-            #Port Stats
+            ###Port Stats
             out_txb=ap.cmd(f"cat /sys/class/net/{port.name}/statistics/tx_bytes")
             out_rxb=ap.cmd(f"cat /sys/class/net/{port.name}/statistics/rx_bytes")
             out_txp=ap.cmd(f"cat /sys/class/net/{port.name}/statistics/tx_packets")
@@ -792,7 +811,7 @@ def test_hosts():
             print(f'L2 Ethernet Port: {port.name} - Type: {type(port)}')
             print(f'Params: {port.params}')
 
-            #Port Stats
+            ###Port Stats
             out_txb=h.cmd(f"cat /sys/class/net/{port.name}/statistics/tx_bytes")
             out_rxb=h.cmd(f"cat /sys/class/net/{port.name}/statistics/rx_bytes")
             out_txp=h.cmd(f"cat /sys/class/net/{port.name}/statistics/tx_packets")
@@ -966,7 +985,7 @@ if __name__ == '__main__':
 
     set_params() #setting antenna gain and transmission rate for APs and stations
 
-    #Testing network deployment and network devices' features
+    ###Testing network deployment and network devices' features
     if '--test_net' in sys.argv:
         test_network()
     if '--test_sw' in sys.argv:
@@ -996,20 +1015,25 @@ if __name__ == '__main__':
     annotate_stations() #upload additional station info on ONOS
     time.sleep(10)
 
-    #Starting threads to periodically refresh annotations on network elements
-    up_aps=threading.Thread(target=update_aps, daemon=True)
-    up_eth_ports=threading.Thread(target=update_eth_ports, daemon=True)
-    up_wlan_ports=threading.Thread(target=update_wlan_ports, daemon=True)
-    up_hosts=threading.Thread(target=update_hosts, daemon=True)
-    up_stations=threading.Thread(target=update_stations, daemon=True)
+    ###Starting threads to periodically refresh annotations on network elements
+    threads=[] #array of all threads started during simulation
+    stop_event=threading.Event() #this event will be used to signal the threads to stop
 
-    up_aps.start()
-    up_eth_ports.start()
-    up_wlan_ports.start()
-    up_hosts.start()
-    up_stations.start()
+    threads.append(threading.Thread(target=update_aps, daemon=True))
+    threads.append(threading.Thread(target=update_eth_ports, daemon=True))
+    threads.append(threading.Thread(target=update_wlan_ports, daemon=True))
+    threads.append(threading.Thread(target=update_hosts, daemon=True))
+    threads.append(threading.Thread(target=update_stations, daemon=True))
+
+    for t in threads:
+        t.start()
 
     CLI(net) #opens Mininet CLI
+
+    stop_event.set() #signal the threads to stop
+    print(f'Stopping threads: {stop_event}\n')
+    for t in threads:
+        t.join() #wait for all threads to finish
 
     net.stop()
 

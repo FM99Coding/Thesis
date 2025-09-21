@@ -9,7 +9,7 @@ import requests #send request to ONOS REST-API endpoint
 
 import pandas as pd #provide data structures
 
-#Utility
+###Utility
 import sys
 import threading
 import time
@@ -119,7 +119,7 @@ def update_flows():
                     stale_device_flows=df_flows[~df_flows['deviceId'].isin(active_devices)]['id'].tolist()
                     flows_to_remove.update(stale_device_flows)
 
-                #Add/Update flows
+                ###Add/Update flows
                 for flow in onos_flows_data:
                     flow_id=flow.get("id")
                     device_id=flow.get("deviceId")
@@ -178,7 +178,7 @@ def get_flows_by_device(deviceId):
 if __name__ == "__main__":
     fetch_data_from_onos() #get data from ONOS
 
-    #Starting threads for updating network info
+    ###Starting threads for updating network info
     update_thread=threading.Thread(target=update_flows, daemon=True)
     update_thread.start()
 

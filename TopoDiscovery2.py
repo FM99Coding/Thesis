@@ -14,6 +14,7 @@ import pandas as pd #provide data structures (DataFrames)
 import sys
 import threading
 import time
+import json
 
 ########################################################################################################Global Variables
 ###Exposed ONOS REST-API endpoints
@@ -49,14 +50,14 @@ df_wlan_ports=pd.DataFrame(columns=['Name', 'OVS_Device', 'Type', 'Port_Num', 'M
                                     'Tx_Packets', 'Rx_Packets', 'Tx_Errors', 'Rx_Errors', 'Tx_Drops', 'Rx_Drops', 'Sample_Time[s]',
                                     'Max_Throughput[Mbps]', 'Max_Queue_Length', 'Backlog_Packets', 'Backlog_Bytes',
                                     'WiFi_Mode', 'WiFi_Frequency[GHz]', 'WiFi_Channel', 'Bandwidth[MHz]', 'Tx_Power[dBm]', 'Gain[dBm]',
-                                    'SSID', 'Range[m]' 'Collisions']) #dataframe of L2 wireless ports
+                                    'SSID', 'Range[m]', 'Collisions']) #dataframe of L2 wireless ports
 
 df_links=pd.DataFrame(columns=['Name', 'Source_Device', 'Source_Port', 'Dest_Device', 'Dest_Port', 'Type',
-                               'Bandwidth[Mbps]', 'Queue_size', 'Backlog_Packets', 'Backlog_Bytes', 'Tot_Packets',
+                               'Bandwidth[Mbps]', 'Queue_Size', 'Backlog_Packets', 'Backlog_Bytes', 'Tot_Packets',
                                'Raw_Data[Byte]', 'Tot_Errors', 'Tot_Drops', 'Throughput[Mbps]', 'Utilization[%]', 'Occupation[%]',
                                'Error_Rate[%]', 'Drop_Rate[%]']) #dataframe of Ethernet links
 df_connections=pd.DataFrame(columns=['Interface', 'AP', 'Access_Port', 'Connected_Devices', 'Type', 'Bandwidth[Mbps]',
-                                     'Queue_size', 'Backlog_Packets', 'Backlog_Bytes' 'Tot_Packets', 'Raw_Data[Byte]',
+                                     'Queue_Size', 'Backlog_Packets', 'Backlog_Bytes', 'Tot_Packets', 'Raw_Data[Byte]',
                                      'Tot_Errors', 'Tot_Drops', 'Collisions', 'Throughput[Mbps]', 'Utilization[%]', 'Occupation[%]',
                                      'Error_Rate[%]', 'Drop_Rate[%]', 'Collision_Rate[%]']) #dataframe of WiFi connections
 
@@ -146,7 +147,7 @@ def read_topo(onos_summary_data):
     topology_summary = {
         "Num OVS Devices": onos_summary_data.get("devices", 0),
         "Num Host Devices": onos_summary_data.get("hosts", 0),
-        "Num Ethernet Links": onos_summary_data.get("links", 0),
+        "Num Ethernet Links": onos_summary_data.get("links", 0)//2,
         "Num WiFi Connections": len(df_connections),
         "Num Clusters": onos_summary_data.get("sccs", 0),
         "Num Controller Instances": onos_summary_data.get("sccs", 0),
@@ -174,7 +175,8 @@ def read_devices(onos_devices_data):
             switches_list.append(device_dict)
         else: #device_type=="Access Point"
             if 'position' in device.get("annotations", {}):
-                pos=device.get("annotations", {}).get("position")
+                pos=json.loads(device.get("annotations", {}).get("position"))
+                pos=[float(c) for c in pos]
             else:
                 pos='NaN'
 
@@ -198,12 +200,13 @@ def read_hosts(onos_hosts_data):
         mac=host.get("mac")
         if "annotations" in host:
             name=host.get("annotations", {}).get("name")
-            intf=host.get("annotations", {}).get("interfaces")
-            type=host.get("annotations", {}).get("type")
+            intf=json.loads(host.get("annotations", {}).get("interfaces"))[0]
         else:
             name=mac_to_name(mac)
-            type="Host" if "h" in name else "Station"
             intf='NaN'
+
+        type="Host" if "h" in name else "Station"
+        print(f'{name} - {type}\n')
 
         host_dict={"ID": host.get("id"),
                     "MAC": mac,
@@ -221,21 +224,23 @@ def read_hosts(onos_hosts_data):
             if "position" in host.get("annotations", {}):
                 annotation=host.get("annotations", {})
 
-                pos=annotation.get("position")
+                pos=json.loads(annotation.get("position"))
+                pos=[float(c) for c in pos]
+
                 mode=annotation.get("wifiMode")
-                freq=annotation.get("wifiFrequency")
-                rssi=annotation.get("RSSI")
+                freq=float(annotation.get("wifiFrequency"))
+                rssi=float(annotation.get("RSSI"))
                 ap_ssid=annotation.get("apSSID")
                 ap_distance=annotation.get("distanceFromAp")
-                tx_bytes=annotation.get("txBytes")
-                rx_bytes=annotation.get("rxBytes")
-                tx_packets=annotation.get("txPackets")
-                rx_packets=annotation.get("rxPackets")
-                tx_errors=annotation.get("txErrors")
-                rx_errors=annotation.get("rxErrors")
-                tx_drops=annotation.get("txDropped")
-                rx_drops=annotation.get("rxDropped")
-                cols=annotation.get("collisions")
+                tx_bytes=int(annotation.get("txBytes"))
+                rx_bytes=int(annotation.get("rxBytes"))
+                tx_packets=int(annotation.get("txPackets"))
+                rx_packets=int(annotation.get("rxPackets"))
+                tx_errors=int(annotation.get("txErrors"))
+                rx_errors=int(annotation.get("rxErrors"))
+                tx_drops=int(annotation.get("txDropped"))
+                rx_drops=int(annotation.get("rxDropped"))
+                cols=int(annotation.get("collisions"))
             else:
                 pos, mode, freq, rssi, ap_ssid, ap_distance, tx_bytes, rx_bytes, tx_packets, rx_packets,\
                 tx_errors, rx_errors, tx_drops, rx_drops, cols=("Nan", "NaN", "Nan", "NaN", "Nan", "NaN", "Nan", "NaN",
@@ -302,10 +307,10 @@ def read_ports(onos_ports_data):
         if "maxThroughput" in port.get("annotations", {}):
             annotation=port.get("annotations", {})
 
-            max_throughput=annotation.get("maxThroughput")
-            max_queue=annotation.get("maxQueueLength")
-            backlog_p=annotation.get("backlogPackets")
-            backlog_b=annotation.get("backlogBytes")
+            max_throughput=float(annotation.get("maxThroughput"))
+            max_queue=int(annotation.get("maxQueueLength"))
+            backlog_p=int(annotation.get("backlogPackets"))
+            backlog_b=int(annotation.get("backlogBytes"))
         else:
             max_throughput, max_queue, backlog_p, backlog_b=("Nan", "Nan", "Nan", "NaN")
 
@@ -335,14 +340,14 @@ def read_ports(onos_ports_data):
                 annotation=port.get("annotations", {})
 
                 mode=annotation.get("wifiMode")
-                freq=annotation.get("wifiFrequency")
-                channel=annotation.get("wifiChannel")
-                band=annotation.get("Bandwidth")
-                tx_power=annotation.get("txPower")
-                gain=annotation.get("gain")
+                freq=float(annotation.get("wifiFrequency"))
+                channel=int(annotation.get("wifiChannel"))
+                band=float(annotation.get("Bandwidth"))
+                tx_power=float(annotation.get("txPower"))
+                gain=float(annotation.get("gain"))
                 ssid=annotation.get("ssid")
-                range=annotation.get("range")
-                cols=annotation.get("collisions")
+                range=float(annotation.get("range"))
+                cols=int(annotation.get("collisions"))
 
             else:
                 mode, freq, channel, band, tx_power, gain, ssid, range, cols=("Nan", "NaN", "Nan", "NaN", "Nan", "NaN", "Nan",
@@ -406,9 +411,9 @@ def read_links(onos_links_data):
             tx_drops=src_port_data['Tx_Drops'].iloc[0]
             rx_drops=src_port_data['Rx_Drops'].iloc[0]
 
-            bandwidth=src_port_data['Max_Throughput[Mbps]'].iloc[0]
-            queue_size=src_port_data['Max_Queue_Length'].iloc[0]+dst_port_data['Max_Queue_Length'].iloc[0]
-            backlog_p=src_port_data['Backlog_Packets'].iloc[0]+dst_port_data['Backlog_Packets'].iloc[0]
+            bandwidth=float(src_port_data['Max_Throughput[Mbps]'].iloc[0])
+            queue_size=int(src_port_data['Max_Queue_Length'].iloc[0])+int(dst_port_data['Max_Queue_Length'].iloc[0])
+            backlog_p=int(src_port_data['Backlog_Packets'].iloc[0])+int(dst_port_data['Backlog_Packets'].iloc[0])
 
             sampling_interval=src_port_data['Sample_Time[s]'].iloc[0]
 
@@ -433,7 +438,7 @@ def read_links(onos_links_data):
             "Bandwidth[Mbps]": bandwidth,
             "Queue_Size": queue_size,
             "Backlog_Packets": backlog_p,
-            "Backlog_Bytes": src_port_data['Backlog_Bytes'].iloc[0]+dst_port_data['Backlog_Bytes'].iloc[0],
+            "Backlog_Bytes": int(src_port_data['Backlog_Bytes'].iloc[0])+int(dst_port_data['Backlog_Bytes'].iloc[0]),
             "Tot_Packets": tx_packets+rx_packets,
             "Raw_Data[Byte]": tx_bytes+rx_bytes,
             "Tot_Errors": tx_errors+rx_errors,
@@ -474,11 +479,11 @@ def read_connections():
         rx_errors=row['Rx_Errors']
         tx_drops=row['Tx_Drops']
         rx_drops=row['Rx_Drops']
-        cols=row['Collisions']
+        cols=int(row['Collisions'])
 
-        bandwidth=row['Max_Throughput[Mbps]'] #Mbps
-        queue_size=row['Max_Queue_Length']
-        backlog_p=row['Backlog_Packets']
+        bandwidth=float(row['Max_Throughput[Mbps]']) #Mbps
+        queue_size=int(row['Max_Queue_Length'])
+        backlog_p=int(row['Backlog_Packets'])
 
         sampling_interval=row['Sample_Time[s]'] #s
 
@@ -497,14 +502,14 @@ def read_connections():
 
         wifi_connection_data={
             'Interface': row['Name'],
-            'AP': access_point,
+            'AP': int(access_point),
             'Access_Port': access_port,
             'Connected_Devices': connected_devices_list,
             'Type': 'WiFi',
             'Bandwidth[Mbps]': bandwidth,
             "Queue_Size": queue_size,
             "Backlog_Packets": backlog_p,
-            "Backlog_Bytes": row['Backlog_Bytes'],
+            "Backlog_Bytes": int(row['Backlog_Bytes']),
             'Raw_Data[Byte]': tx_bytes+rx_bytes,
             'Tot_Packets': tx_packets+rx_packets,
             'Tot_Errors': tx_errors+rx_errors,
@@ -550,7 +555,7 @@ def update_topology():
                 topology_summary.update({
                     "Num OVS Devices": onos_summary_data.get("devices", 0),
                     "Num Host Devices": onos_summary_data.get("hosts", 0),
-                    "Num Ethernet Links": onos_summary_data.get("links", 0),
+                    "Num Ethernet Links": onos_summary_data.get("links", 0)//2,
                     "Num WiFi Connections": num_wifi_connections,
                     "Num Clusters": onos_summary_data.get("sccs", 0),
                     "Num Controller Instances": onos_summary_data.get("sccs", 0),
@@ -657,7 +662,8 @@ def update_aps():
                         type="Access Point"
 
                         if 'position' in ap.get("annotations", {}):
-                            pos=ap.get("annotations", {}).get("position")
+                            pos=json.loads(ap.get("annotations", {}).get("position"))
+                            pos=[float(c) for c in pos]
                         else:
                             pos='NaN'
 
@@ -692,15 +698,16 @@ def update_hosts():
             hosts_response.raise_for_status()
             onos_hosts_data=hosts_response.json().get("hosts", [])
 
+            host_to_process=[]
             for host in onos_hosts_data:
                 name=mac_to_name(host.get("mac"))
-                if "sta" in name:
-                    onos_hosts_data.remove(host)
+                if "h" in name:
+                    host_to_process.append(host)
 
             new_hosts_list=[] #list of newly discovered host/station devices
             with hosts_lock:
                 current_id_set=set(df_hosts['ID']) #IDs of currently registered host devices
-                onos_id_set={host.get("id") for host in onos_hosts_data} #host devices that are still seen by ONOS
+                onos_id_set={host.get("id") for host in host_to_process} #host devices that are still seen by ONOS
                 hosts_to_remove=list(current_id_set-onos_id_set) #if ONOS does not see the host device anymore, it has to be removed
 
                 if hosts_to_remove: #if there are host devices to be removed
@@ -709,14 +716,14 @@ def update_hosts():
                     df_hosts.reset_index(inplace=True) #reset original DataFrame index
                     print(f"Removed host devices: {hosts_to_remove}")
 
-                for host in onos_hosts_data: #for all host devices seen by ONOS
+                for host in host_to_process: #for all host devices seen by ONOS
                     id=host.get("id")
                     type="Host"
 
                     if id not in current_id_set: #if the host device is new (not yet registered in the dataframe)
                         if "annotations" in host:
                             name=host.get("annotations", {}).get("name")
-                            intf=host.get("annotations", {}).get("interfaces")
+                            intf=json.loads(host.get("annotations", {}).get("interfaces"))[0]
                         else:
                             name=mac_to_name(host.get("mac"))
                             intf='NaN'
@@ -789,22 +796,24 @@ def update_stations():
                             annotation=station.get("annotations", {})
 
                             name=annotation.get("name")
-                            intf=annotation.get("interfaces")
-                            pos=annotation.get("position")
+                            intf=json.load(annotation.get("interfaces"))[0]
+                            pos=json.loads(annotation.get("position"))
+                            pos=[float(c) for c in pos]
+
                             mode=annotation.get("wifiMode")
-                            freq=annotation.get("wifiFrequency")
-                            rssi=annotation.get("RSSI[dBm]")
+                            freq=float(annotation.get("wifiFrequency"))
+                            rssi=float(annotation.get("RSSI"))
                             ap_ssid=annotation.get("apSSID")
                             ap_distance=annotation.get("distanceFromAp")
-                            tx_bytes=annotation.get("txBytes")
-                            rx_bytes=annotation.get("rxBytes")
-                            tx_packets=annotation.get("txPackets")
-                            rx_packets=annotation.get("rxPackets")
-                            tx_errors=annotation.get("txErrors")
-                            rx_errors=annotation.get("rxErrors")
-                            tx_drops=annotation.get("txDropped")
-                            rx_drops=annotation.get("rxDropped")
-                            cols=annotation.get("collisions")
+                            tx_bytes=int(annotation.get("txBytes"))
+                            rx_bytes=int(annotation.get("rxBytes"))
+                            tx_packets=int(annotation.get("txPackets"))
+                            rx_packets=int(annotation.get("rxPackets"))
+                            tx_errors=int(annotation.get("txErrors"))
+                            rx_errors=int(annotation.get("rxErrors"))
+                            tx_drops=int(annotation.get("txDropped"))
+                            rx_drops=int(annotation.get("rxDropped"))
+                            cols=int(annotation.get("collisions"))
                         else:
                             name=mac_to_name(station.get("mac"))
                             intf, pos, mode, freq, rssi, ap_ssid, ap_distance, tx_bytes, rx_bytes, tx_packets, rx_packets, \
@@ -846,19 +855,19 @@ def update_stations():
 
                         annotation=station.get("annotations", {})
 
-                        freq=annotation.get("wifiFrequency")
-                        rssi=annotation.get("RSSI[dBm]")
+                        freq=float(annotation.get("wifiFrequency"))
+                        rssi=float(annotation.get("RSSI[dBm]"))
                         ap_ssid=annotation.get("apSSID")
                         ap_distance=annotation.get("distanceFromAp")
-                        tx_bytes=annotation.get("txBytes")
-                        rx_bytes=annotation.get("rxBytes")
-                        tx_packets=annotation.get("txPackets")
-                        rx_packets=annotation.get("rxPackets")
-                        tx_errors=annotation.get("txErrors")
-                        rx_errors=annotation.get("rxErrors")
-                        tx_drops=annotation.get("txDropped")
-                        rx_drops=annotation.get("rxDropped")
-                        cols=annotation.get("collisions")
+                        tx_bytes=int(annotation.get("txBytes"))
+                        rx_bytes=int(annotation.get("rxBytes"))
+                        tx_packets=int(annotation.get("txPackets"))
+                        rx_packets=int(annotation.get("rxPackets"))
+                        tx_errors=int(annotation.get("txErrors"))
+                        rx_errors=int(annotation.get("rxErrors"))
+                        tx_drops=int(annotation.get("txDropped"))
+                        rx_drops=int(annotation.get("rxDropped"))
+                        cols=int(annotation.get("collisions"))
 
                         station_row=df_stations['ID']==id #filter to get dataframe row corresponding to current station
 
@@ -948,10 +957,10 @@ def update_eth_ports():
                     if "maxThroughput" in port.get("annotations", {}):
                         annotation=port.get("annotations", {})
 
-                        max_throughput=annotation.get("maxThroughput")
-                        max_queue=annotation.get("maxQueueLength")
-                        backlog_p=annotation.get("backlogPackets")
-                        backlog_b=annotation.get("backlogBytes")
+                        max_throughput=float(annotation.get("maxThroughput"))
+                        max_queue=int(annotation.get("maxQueueLength"))
+                        backlog_p=int(annotation.get("backlogPackets"))
+                        backlog_b=int(annotation.get("backlogBytes"))
                     else:
                         max_throughput, max_queue, backlog_p, backlog_b = ("Nan", "Nan", "Nan", "NaN")
 
@@ -1060,19 +1069,19 @@ def update_wlan_ports():
                     if "maxThroughput" in port.get("annotations", {}):
                         annotation=port.get("annotations", {})
 
-                        max_throughput=annotation.get("maxThroughput")
-                        max_queue=annotation.get("maxQueueLength")
-                        backlog_p=annotation.get("backlogPackets")
-                        backlog_b=annotation.get("backlogBytes")
+                        max_throughput=float(annotation.get("maxThroughput"))
+                        max_queue=int(annotation.get("maxQueueLength"))
+                        backlog_p=int(annotation.get("backlogPackets"))
+                        backlog_b=int(annotation.get("backlogBytes"))
                         mode=annotation.get("wifiMode")
-                        freq=annotation.get("wifiFrequency")
-                        channel=annotation.get("wifiChannel")
-                        band=annotation.get("Bandwidth")
-                        tx_power=annotation.get("txPower")
-                        gain=annotation.get("gain")
+                        freq=float(annotation.get("wifiFrequency"))
+                        channel=int(annotation.get("wifiChannel"))
+                        band=float(annotation.get("Bandwidth"))
+                        tx_power=float(annotation.get("txPower"))
+                        gain=float(annotation.get("gain"))
                         ssid=annotation.get("ssid")
-                        range=annotation.get("range")
-                        cols=annotation.get("collisions")
+                        range=float(annotation.get("range"))
+                        cols=int(annotation.get("collisions"))
                     else:
                         max_throughput, max_queue, backlog_p, backlog_b=("Nan", "Nan", "Nan", "NaN")
                         mode, freq, channel, band, tx_power, gain, ssid, range, cols=("Nan", "NaN", "Nan", "NaN", "Nan",
@@ -1209,10 +1218,10 @@ def update_links():
                         tx_drops=src_port_data['Tx_Drops'].iloc[0]
                         rx_drops=src_port_data['Rx_Drops'].iloc[0]
 
-                        bandwidth=src_port_data['Max_Throughput[Mbps]'].iloc[0]
-                        queue_size=src_port_data['Max_Queue_Length'].iloc[0]+dst_port_data['Max_Queue_Length'].iloc[0]
-                        backlog_p=src_port_data['Backlog_Packets'].iloc[0]+dst_port_data['Backlog_Packets'].iloc[0]
-                        backlog_b=src_port_data['Backlog_Bytes'].iloc[0]+dst_port_data['Backlog_Bytes'].iloc[0]
+                        bandwidth=float(src_port_data['Max_Throughput[Mbps]'].iloc[0])
+                        queue_size=int(src_port_data['Max_Queue_Length'].iloc[0])+int(dst_port_data['Max_Queue_Length'].iloc[0])
+                        backlog_p=int(src_port_data['Backlog_Packets'].iloc[0])+int(dst_port_data['Backlog_Packets'].iloc[0])
+                        backlog_b=int(src_port_data['Backlog_Bytes'].iloc[0])+int(dst_port_data['Backlog_Bytes'].iloc[0])
 
                         sampling_interval=src_port_data['Sample_Time[s]'].iloc[0]
 
@@ -1224,6 +1233,8 @@ def update_links():
                         try:
                             error_rate=(tx_errors+rx_errors)/(tx_packets+rx_packets+tx_errors+rx_errors+tx_drops+rx_drops)
                             drop_rate=(tx_drops+rx_drops)/(tx_packets+rx_packets+tx_errors+rx_errors+tx_drops+rx_drops)
+                            error_rate=max(0.0, error_rate)
+                            drop_rate=max(0.0, drop_rate)
                         except ZeroDivisionError:
                             error_rate=0
                             drop_rate=0
@@ -1238,7 +1249,7 @@ def update_links():
                             "Bandwidth[Mbps]": bandwidth,
                             "Queue_Size": queue_size,
                             "Backlog_Packets": backlog_p,
-                            "Backlog_Bytes": src_port_data['Backlog_Bytes'].iloc[0]+dst_port_data['Backlog_Bytes'].iloc[0],
+                            "Backlog_Bytes": backlog_b,
                             "Tot_Packets": tx_packets+rx_packets,
                             "Raw_Data[Byte]": tx_bytes+rx_bytes,
                             "Tot_Errors": tx_errors+rx_errors,
@@ -1269,6 +1280,8 @@ def update_links():
                             drop_rate=(tx_drops+rx_drops-previous_drops)/(
                                        tx_packets+rx_packets+tx_errors+rx_errors+tx_drops+rx_drops
                                         -previous_packets-previous_errors-previous_drops)
+                            error_rate=max(0.0, error_rate)
+                            drop_rate=max(0.0, drop_rate)
                         except ZeroDivisionError:
                             error_rate=0
                             drop_rate=0
@@ -1308,7 +1321,7 @@ def update_connections():
                                          for index, row in df_connections.iterrows()} #<name, row index> for all registered connections
 
                 with wlan_ports_lock:
-                    connections_to_remove=set(current_connections_map.keys())-set(df_wlan_ports['Name']) #the wlan port is not seen by ONOS anymore, remove connection
+                    connections_to_remove=set(current_connections_map.keys())-set(df_wlan_ports['Name']) #wlan port is not seen by ONOS
                     if connections_to_remove: #if there are WiFi connections to be removed
                         df_connections.set_index('Interface', inplace=True) #sets column Interface as DataFrame index
                         df_connections.drop(list(connections_to_remove), inplace=True) #remove rows corresponding to stale connections
@@ -1340,11 +1353,11 @@ def update_connections():
                         rx_errors=row['Rx_Errors']
                         tx_drops=row['Tx_Drops']
                         rx_drops=row['Rx_Drops']
-                        cols=row['Collisions']
+                        cols=int(row['Collisions'])
 
-                        bandwidth=row['Max_Throughput[Mbps]'] #Mbps
-                        queue_size=row['Max_Queue_Length']
-                        backlog_p=row['Backlog_Packets']
+                        bandwidth=float(row['Max_Throughput[Mbps]']) #Mbps
+                        queue_size=int(row['Max_Queue_Length'])
+                        backlog_p=int(row['Backlog_Packets'])
 
                         sampling_interval=row['Sample_Time[s]'] #s
 
@@ -1360,6 +1373,9 @@ def update_connections():
                                         tx_packets+rx_packets+tx_errors+rx_errors+tx_drops+rx_drops+cols)
                                 cols_rate=cols/(
                                         tx_packets+rx_packets+tx_errors+rx_errors+tx_drops+rx_drops+cols)
+                                error_rate=max(0.0, error_rate)
+                                drop_rate=max(0.0, drop_rate)
+                                cols_rate=max(0.0, cols_rate)
                             except ZeroDivisionError:
                                 error_rate=0
                                 drop_rate=0
@@ -1374,7 +1390,7 @@ def update_connections():
                                 "Bandwidth[Mbps]": bandwidth,
                                 "Queue_Size": queue_size,
                                 "Backlog_Packets": backlog_p,
-                                "Backlog_Bytes": row['Backlog_Bytes'],
+                                "Backlog_Bytes": int(row['Backlog_Bytes']),
                                 'Tot_Packets': tx_packets+rx_packets,
                                 "Raw_Data[Byte]": tx_bytes+rx_bytes,
                                 'Tot_Errors': tx_errors+rx_errors,
@@ -1410,6 +1426,9 @@ def update_connections():
                                         -previous_packets-previous_errors-previous_drops-previous_cols)
                                 cols_rate=(cols-previous_cols)/(tx_packets+rx_packets+tx_errors+rx_errors+tx_drops+rx_drops+cols
                                         -previous_packets-previous_errors-previous_drops-previous_cols)
+                                error_rate=max(0.0, error_rate)
+                                drop_rate=max(0.0, drop_rate)
+                                cols_rate=max(0.0, cols_rate)
                             except ZeroDivisionError:
                                 error_rate=0
                                 drop_rate=0
@@ -1448,6 +1467,8 @@ def get_topology():
 @app.route("/topology/devices", methods=["GET"]) #exposes GET http://localhost:8080/topology/devices
 def get_ovs_devices():
     df_all=pd.concat([df_switches, df_aps], ignore_index=True)
+    df_all=df_all.where(pd.notna(df_all), None) #handle NaN fields for JSON
+
     return jsonify(df_all.to_dict(orient="records")) #converts dataframe to JSON to be exposed
 
 @app.route("/topology/devices/switches", methods=["GET"]) #exposes GET http://localhost:8080/topology/devices/switches
@@ -1468,7 +1489,12 @@ def get_station_devices():
 
 @app.route("/topology/ports", methods=["GET"]) #exposes GET http://localhost:8080/topology/ports
 def get_l2_ports():
-    df_all=pd.concat([df_eth_ports, df_wlan_ports], ignore_index=True)
+    df_eth_ports_filled = df_eth_ports.fillna('n/a')
+    df_wlan_ports_filled = df_wlan_ports.fillna('n/a')
+    df_all=pd.concat([df_eth_ports_filled, df_wlan_ports_filled], ignore_index=True)
+    #df_all=df_all.where(pd.notna(df_all), None) #handle NaN fields for JSON
+    df_all = df_all.replace('n/a', None)
+
     return jsonify(df_all.to_dict(orient="records"))
 
 @app.route("/topology/ports/eth", methods=["GET"]) #exposes GET http://localhost:8080/topology/ports/eth
@@ -1485,6 +1511,7 @@ def get_ports_by_device(deviceId):
         device_eth_ports=df_eth_ports[df_eth_ports['OVS_Device']==deviceId] #filters only Ethernet ports of the specified device
         device_wlan_ports=df_wlan_ports[df_wlan_ports['OVS_Device']==deviceId] #filters only WiFi ports of the specified device
         device_ports=pd.concat([device_eth_ports, device_wlan_ports], ignore_index=True)
+        device_ports=device_ports.where(pd.notna(device_ports), None) #handle NaN fields for JSON
 
         if device_ports.empty:
             return jsonify({"error": "No L2 ports found for this device or device not found"}), 404
@@ -1522,7 +1549,7 @@ def mac_to_name(mac: str) -> str:
 if __name__=="__main__":
     fetch_data_from_onos() #get data from ONOS
 
-    #Starting threads for updating network info
+    ###Starting threads for updating network info
     up_topology=threading.Thread(target=update_topology, daemon=True) #update topology summary
     up_switches=threading.Thread(target=update_switches, daemon=True) #update OVS devices dataframe
     up_aps=threading.Thread(target=update_aps, daemon=True)
