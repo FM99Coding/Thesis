@@ -1,0 +1,220 @@
+module ietf-interfaces { 
+  yang-version 1.1; 
+  namespace "urn:ietf:params:xml:ns:yang:ietf-interfaces"; 
+  prefix if; 
+
+  import ietf-yang-types { 
+    prefix yang;
+    reference "RFC 6991: Common YANG Data Types";
+  }
+  
+  organization "UNIVERSITA' DELLA CALABRIA - Master Degree in Telecommunication 
+                Engineering, Smart Sensing, Computing, and Networking - TITAN Lab";
+  contact "Course Web: <https://corsi.unical.it/lm/telecommunicationengineering-smart-
+                        sensing-computing-and-networking/ >
+           Editor: Francesco Mazzei <mailto:francesco1999mazzei@gmail.com>
+           Supervisor: Pasquale Pace <mailto: p.pace@dimes.unical.it>
+           Supervisor: Antonio Iera <mailto: antonio.iera@dimes.unical.it>";
+
+  description "This module contains a YANG definitions for managing network interfaces. 
+     
+               This YANG module has been developed as part of the Master's Thesis in 
+               Telecommunication Engineering at the University of Calabria. The model 
+               is based on and modifies the module defined in RFC 8343 (IETF NETMOD 
+               Working Group), preserving the original structure and introducing 
+               extensions/adaptations for the purposes of this research.
+
+               Copyright (c) 2018 IETF Trust and the persons identified as authors of 
+               the code. All rights reserved. Redistribution and use in source and 
+               binary forms, with or without modification, is permitted pursuant to, 
+               and subject to the license terms contained in, the Simplified BSD 
+               License set forth in Section 4.c of the IETF Trust's Legal Provisions 
+               Relating to IETF Documents(https://trustee.ietf.org/license-info).";
+
+  revision 2025-10-03 {
+    description "Elements considered non-essential for the objectives of the Master's 
+                 Thesis have been omitted. The original structure and semantics have 
+                 been preserved where applicable.";
+  }
+  revision 2018-02-20 { 
+    description "Updated to support NMDA."; 
+    reference "RFC 8343: A YANG Data Model for Interface Management"; 
+  } 
+  revision 2014-05-08 { 
+    description "Initial revision."; 
+    reference "RFC 7223: A YANG Data Model for Interface Management"; 
+  } 
+
+  typedef interface-ref { 
+    type leafref { 
+      path "/if:interfaces/if:interface/if:name"; 
+    } 
+    description "This type is used by data models that need to reference interfaces."; 
+  }
+
+  identity interface-type { 
+    description "Base identity from which specific interface types are derived."; 
+  } 
+ 
+  container interfaces { 
+    description "Interface parameters.";
+
+    list interface { 
+      key "name"; 
+      description "The list of interfaces on the device";
+
+      leaf name { 
+        type string; 
+        description "The name of the interface";
+      } 
+
+      leaf description { 
+        type string; 
+        description "A textual description of the interface";
+      } 
+
+      leaf type { 
+        type identityref { 
+          base interface-type; 
+        } 
+        mandatory true; 
+        description "The type of the interface.";
+      } 
+    
+      leaf enabled { 
+        type boolean; 
+        default "true"; 
+        description "This leaf contains the configured state of the interface.";
+      } 
+
+      leaf oper-status { 
+        type enumeration { 
+          enum up { 
+            value 1; 
+            description "Ready to pass packets."; 
+          } 
+          enum down { 
+            value 2;
+            description "The interface does not pass any packets."; 
+          } 
+          enum testing { 
+            value 3; 
+            description "In some test mode. No operational packets can be passed."; 
+          } 
+          enum unknown { 
+            value 4; 
+            description "Status cannot be determined for some reason."; 
+          } 
+          enum dormant { 
+            value 5; 
+            description "Waiting for some external event."; 
+          } 
+          enum not-present { 
+            value 6; 
+            description "Some component (typically hardware) is missing."; 
+          } 
+          enum lower-layer-down { 
+            value 7; 
+            description "Down due to state of lower-layer interface(s)."; 
+          } 
+        } 
+        config false; 
+        mandatory true; 
+        description "The current operational state of the interface.";
+      } 
+
+      leaf last-change { 
+        type yang:date-and-time; 
+        config false; 
+        description "Time the interface entered its current operational state.";
+      } 
+
+      leaf phys-address { 
+        type yang:phys-address; 
+        config false; 
+        description "The interface’s link layer address. For an 802.x interface, this 
+                     object normally contains a Media Access Control (MAC) address.";
+      } 
+
+      leaf-list higher-layer-if { 
+        type interface-ref; 
+        config false; 
+        description "References to interfaces layered on top of this interface."; 
+      } 
+
+      leaf-list lower-layer-if { 
+        type interface-ref; 
+        config false;
+        description "References to interfaces layered underneath this interface."; 
+      } 
+
+      leaf speed { 
+        type yang:gauge64; 
+        units "bits/second"; 
+        config false; 
+        description "Estimate of the interface’s current bandwidth in bps. For 
+                     interfaces that do not vary in bandwidth or for those where no 
+                     accurate estimation can be made, this node should contain the 
+                     nominal bandwidth. "; 
+      }
+
+      container statistics {
+        config false;
+        description "A collection of interface-related statistics objects.";
+
+        leaf discontinuity-time {
+          type yang:date-and-time;
+            description "System reset time.";
+        }
+
+        leaf in-octets {
+          type yang:counter64;
+          description "Total received bytes.";
+        }
+
+        leaf in-unicast-pkts {
+          type yang:counter64;
+          description "Total received unicast packets.";
+          reference "RFC 2863: The Interfaces Group MIB - ifHCInUcastPkts";
+        }
+
+        leaf in-discards {
+          type yang:counter32;
+          description "Dropped received packets due to buffer overflow.";
+          reference "RFC 2863: The Interfaces Group MIB - ifInDiscards";
+        }
+
+        leaf in-errors {
+          type yang:counter32;
+          description "Reception errors.";
+          reference "RFC 2863: The Interfaces Group MIB - ifInErrors";
+        }
+
+        leaf out-octets {
+          type yang:counter64;
+          description "Total transmitted bytes.";
+          reference "RFC 2863: The Interfaces Group MIB - ifHCOutOctets";
+        }
+
+        leaf out-unicast-pkts {
+          type yang:counter64;
+          description "Total transmitted unicast packets.";
+          reference "RFC 2863: The Interfaces Group MIB - ifHCOutUcastPkts";
+        }
+
+        leaf out-discards {
+          type yang:counter32;
+          description " Dropped transmitted packets due to buffer overflow.";
+          reference "RFC 2863: The Interfaces Group MIB - ifOutDiscards";
+        }
+
+        leaf out-errors {
+          type yang:counter32;
+          description "Transmission errors.";
+          reference "RFC 2863: The Interfaces Group MIB - ifOutErrors";
+        }
+      } //container statistics
+    } //list interface
+  } //container interfaces
+} //module ietf-interfaces
+

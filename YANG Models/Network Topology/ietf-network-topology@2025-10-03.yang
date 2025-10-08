@@ -1,0 +1,151 @@
+module ietf-network-topology {
+  yang-version 1.1;
+  namespace "urn:ietf:params:xml:ns:yang:ietf-network-topology";
+  prefix nt;
+
+  import ietf-network {
+    prefix nw;
+    reference "RFC 8345: A YANG Data Model for Network Topologies";
+  }
+  import ietf-inet-types {
+    prefix inet;
+    reference "RFC 6991: Common YANG Data Types";
+  }
+
+  organization "UNIVERSITA' DELLA CALABRIA - Master Degree in Telecommunication 
+                Engineering, Smart Sensing, Computing, and Networking - TITAN Lab";
+  contact "Course Web: <https://corsi.unical.it/lm/telecommunicationengineering-smart-
+                        sensing-computing-and-networking/ >
+           Editor: Francesco Mazzei <mailto:francesco1999mazzei@gmail.com>
+           Supervisor: Pasquale Pace <mailto: p.pace@dimes.unical.it>
+           Supervisor: Antonio Iera <mailto: antonio.iera@dimes.unical.it>";
+  description "This module augments the 'ietf-network' data model with information 
+               about network topology.
+
+	       This YANG module has been developed as part of the Master's Thesis
+               in Telecommunication Engineering at the University of Calabria. The 
+               model is based on and modifies the module defined in RFC 8345(IETF I2RS 
+               Working Group), preserving the original structure and introducing 
+               extensions/adaptations for the purposes of this research.
+
+               Copyright (c) 2018 IETF Trust and the persons identified as authors of 
+               the code. All rights reserved. Redistribution and use in source and 
+               binary forms, with or without modification, is permitted pursuant to, 
+               and subject to the license terms contained in, the Simplified BSD 
+               License set forth in Section 4.c of the IETF Trust's Legal Provisions 
+               Relating to IETF Documents(https://trustee.ietf.org/license-info).";
+
+  revision 2025-10-03 {
+    description "Elements considered non-essential for the objectives of the Master's 
+                 Thesis have been omitted. The original structure and semantics have 
+                 been preserved where applicable.";
+  } 
+  revision 2018-02-26 {
+    description "Initial revision.";
+    reference "RFC 8345: A YANG Data Model for Network Topologies";
+  }
+
+  typedef tp-id {
+    type inet:uri;
+    description "Identifier for a termination point.";
+  }
+  typedef link-id {
+    type inet:uri;
+    description "Identifier for a link.";
+  }
+
+  grouping link-ref {
+    description "Contains the information necessary to reference a link.";
+    leaf link-ref {
+      type leafref {
+        path "/nw:networks/nw:network[nw:network-id=current()/../"+
+             "nw:network-ref]/nt:link/nt:link-id";
+        require-instance false;
+      } //type leafref
+    } //leaf link-ref
+    uses nw:network-ref;
+  } //grouping link-ref
+
+  grouping termination-point-ref {
+    description "Contains the information necessary to reference a termination point.";
+    leaf tp-ref {
+      type leafref {
+        path "/nw:networks/nw:network[nw:network-id=current()/../"+
+             "nw:network-ref]/nw:node[nw:node-id=current()/../"+
+             "nw:node-ref]/nt:termination-point/nt:tp-id";
+        require-instance false;
+      }
+      description "Termination points are identified relative to the network and node 
+                   that contain them.";
+    }
+    uses nw:node-ref;
+  }
+
+  augment "/nw:networks/nw:network" {
+    description "Augments the base network with topology information.";
+    list link {
+      key "link-id";
+      description "The list of links in the network.";
+
+      leaf link-id {
+        type link-id;
+        description "The identifier of a link in the topology.";
+      }
+
+      container source {
+        description "Source node and source termination point of a link.";
+        
+        leaf source-node {
+          type leafref {
+            path "../../../nw:node/nw:node-id";
+            require-instance false;
+          }
+          description "Source node identifier.";
+        }
+        
+        leaf source-tp {
+          type leafref {
+            path "../../../nw:node[nw:node-id=current()/../source-node]/"+            
+                 "nt:termination-point/nt:tp-id";
+            require-instance false;
+          }
+          description "Source TP identifier.";
+        }
+      } //container source
+
+      container destination {
+        description "Destination node and destination termination point of a link.";
+        
+        leaf dest-node {
+          type leafref {
+            path "../../../nw:node/nw:node-id";
+            require-instance false;
+          }
+          description "Destination node identifier.";
+        }
+        
+        leaf dest-tp {
+          type leafref {
+            path "../../../nw:node[nw:node-id=current()/../dest-node]/"+
+                 "nt:termination-point/nt:tp-id";
+            require-instance false;
+          }
+          description "Destination TP identifier.";
+        }
+      } //container destination
+    } //list link
+  } //augment "/nw:networks/nw:network"
+
+  augment "/nw:networks/nw:network/nw:node" {
+    description "Augments the base network node with topology information.";
+    list termination-point {
+      key "tp-id";
+      description "Termination points of a node. They can be used to anchor links.";
+      
+      leaf tp-id {
+        type tp-id;
+        description "The identifier of a termination point in the scope of the node.";
+      }
+    } //list termination point
+  } //augment "/nw:networks/nw:network/nw:node"
+} //module ietf-network-topology
