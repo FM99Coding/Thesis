@@ -1,0 +1,43 @@
+# =========================
+# Dockerfile NGSI-traductor
+# =========================
+
+# 1) Base Image
+FROM ubuntu:20.04
+
+# Environment variable to avoid interactivity during apt execution
+ENV DEBIAN_FRONTEND=noninteractive
+
+# 2) Update packages and dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    nano \
+    python3.8 \
+    python3.8-distutils \
+    python3.8-venv \
+    python3-pip \
+    build-essential \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python 3.8.10 and upgrade pip
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.8 1
+RUN python -m pip install --upgrade pip setuptools wheel
+
+# 3) Install pyang tool in /opt/pyang
+RUN git clone https://github.com/mbj4668/pyang.git /opt/pyang \
+    && cd /opt/pyang \
+    && python3.8 -m pip install --no-cache-dir /opt/pyang
+    
+# 3) Install pyang plugin in /opt/yang-to-ngsi-ld
+RUN git clone https://github.com/giros-dit/yang-to-ngsi-ld.git /opt/yang-to-ngsi-ld
+
+# 4) Copy YANG templates in ~/Documenti/Thesis_2025/My_YANG_Models from host to /root/YANG_Templates
+COPY ["My_YANG_Models", "/root/YANG_Templates"]
+
+# 5) Set root working directory
+WORKDIR /root
+
+# 6) Default entry command
+CMD ["/bin/bash"]
