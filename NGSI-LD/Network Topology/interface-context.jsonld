@@ -1,0 +1,74 @@
+{
+    "@context": [ 
+        "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context-v1.jsonld",
+        {
+            "ietf-interfaces": "urn:ietf:params:xml:ns:yang:ietf-interfaces/",
+            "ietf-ip": "urn:ietf:params:xml:ns:yang:ietf-ip/",
+            "ietf-microwave-radio-link": "urn:ietf:params:xml:ns:yang:ietf-microwave-radio-link/",
+        
+            "Interface": "ietf-interfaces:interfaces/interface",
+            "interfaceName": "ietf-interfaces:interfaces/interface/name",
+            "interfaceType": "ietf-interfaces:interfaces/interface/type",
+            "interfaceDescription": "ietf-interfaces:interfaces/interface/description",
+            "interfaceEnabled": "ietf-interfaces:interfaces/interface/enabled",
+            "operStatus": "ietf-interfaces:interfaces/interface/oper-status",
+            "lastChange": "ietf-interfaces:interfaces/interface/last-change",
+            "physAddress": "ietf-interfaces:interfaces/interface/phys-address",
+            "higherLayerIf": "ietf-interfaces:interfaces/interface/higher-layer-if",
+            "lowerLayerIf": "ietf-interfaces:interfaces/interface/lower-layer-if",
+            "speed": "ietf-interfaces:interfaces/interface/speed",
+        
+            "InterfaceStatistics": "ietf-interfaces:interfaces/interface/statistics",
+            "discontinuityTime": "ietf-interfaces:interfaces/interface/statistics/discontinuity-time",
+            "inOctets": "ietf-interfaces:interfaces/interface/statistics/in-octets",
+            "inUnicastPkts": "ietf-interfaces:interfaces/interface/statistics/in-unicast-pkts",
+            "inDiscards": "ietf-interfaces:interfaces/interface/statistics/in-discards",
+            "inErrors": "ietf-interfaces:interfaces/interface/statistics/in-errors",
+            "outOctets": "ietf-interfaces:interfaces/interface/statistics/out-octets",
+            "outUnicastPkts": "ietf-interfaces:interfaces/interface/statistics/out-unicast-pkts",
+            "outDiscards": "ietf-interfaces:interfaces/interface/statistics/out-discards",
+            "outErrors": "ietf-interfaces:interfaces/interface/statistics/out-errors",
+        
+            "carrierTerminations": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:carrier-terminations",
+            "carrierId": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:carrier-id",
+            "txEnabled": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:tx-enabled",
+            "txOperStatus": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:tx-oper-status",
+            "txFrequency": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:tx-frequency",
+            "rxFrequency": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:freq-or-distance/rx-frequency",
+            "duplexDistance": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:freq-or-distance/duplex-distance",
+            "channelSeparation": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:channel-separation",
+            "actualTransmittedLevel": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:actual-transmitted-level",
+            "actualReceivedLevel": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:actual-received-level",
+            "actualSnir": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:actual-snir",
+        
+            "codingModulationModeSingle": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:coding-modulation-mode/single",
+            "selectedCm": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:coding-modulation-mode/single/selected-cm",
+            "codingModulationModeAdaptive": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:coding-modulation-mode/adaptive",
+            "selectedMinAcm": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:coding-modulation-mode/adaptive/selected-min-acm",
+            "selectedMaxAcm": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:coding-modulation-mode/adaptive/selected-max-acm",
+        
+            "InterfaceCapabilities": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:capabilities",
+            "minTxFrequency": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:capabilities/min-tx-frequency",
+            "maxTxFrequency": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:capabilities/max-tx-frequency",
+            "minRxFrequency": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:capabilities/min-rx-frequency",
+            "maxRxFrequency": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:capabilities/max-rx-frequency",
+           
+            "InterfaceRadioPerformanceStatistics": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:radio-performance-statistics",
+            "minRltm": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:radio-performance-statistics/min-rltm",
+            "maxRltm": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:radio-performance-statistics/max-rltm",
+            "minTltm": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:radio-performance-statistics/min-tltm",
+            "maxTltm": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:radio-performance-statistics/max-tltm",
+    
+            "InterfaceIpv4": "ietf-interfaces:interfaces/interface/ietf-ip:ipv4",
+            "IPv4Enabled": "ietf-interfaces:interfaces/interface/ietf-ip:ipv4/enabled",
+            "forwarding": "ietf-interfaces:interfaces/interface/ietf-ip:ipv4/forwarding",
+            "mtu": "ietf-interfaces:interfaces/interface/ietf-ip:ipv4/mtu",
+            
+            "InterfaceIpv4Address": "ietf-interfaces:interfaces/interface/ietf-ip:ipv4/address",
+            "ip": "ietf-interfaces:interfaces/interface/ietf-ip:ipv4/address/ip",
+            "prefixLength": "ietf-interfaces:interfaces/interface/ietf-ip:ipv4/address/subnet/prefix-length",
+            "netmask": "ietf-interfaces:interfaces/interface/ietf-ip:ipv4/address/subnet/netmask",
+            "origin": "ietf-interfaces:interfaces/interface/ietf-ip:ipv4/address/origin"
+        }
+    ]            
+}    
