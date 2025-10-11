@@ -1,0 +1,36 @@
+module: ietf-microwave-radio-link
+
+  augment /if:interfaces/if:interface:
+    +--rw carrier-terminations*   if:interface-ref
+  augment /if:interfaces/if:interface:
+    +--rw carrier-id?                     string
+    +--rw tx-enabled?                     boolean
+    +--ro tx-oper-status?                 enumeration
+    +--rw tx-frequency                    uint32
+    +--rw (freq-or-distance)
+    |  +--:(rx-frequency)
+    |  |  +--rw rx-frequency?             uint32
+    |  +--:(duplex-distance)
+    |     +--rw duplex-distance?          int32
+    +--rw channel-separation              uint32
+    +--ro actual-transmitted-level?       power
+    +--ro actual-received-level?          power
+    +--rw (coding-modulation-mode)
+    |  +--:(single)
+    |  |  +--rw single
+    |  |     +--rw selected-cm    identityref
+    |  +--:(adaptive)
+    |     +--rw adaptive
+    |        +--rw selected-min-acm    identityref
+    |        +--rw selected-max-acm    identityref
+    +--ro actual-snir?                    decimal64
+    +--ro capabilities
+    |  +--ro min-tx-frequency?   uint32
+    |  +--ro max-tx-frequency?   uint32
+    |  +--ro min-rx-frequency?   uint32
+    |  +--ro max-rx-frequency?   uint32
+    +--ro radio-performance-statistics
+       +--ro min-rltm?   power
+       +--ro max-rltm?   power
+       +--ro min-tltm?   power
+       +--ro max-tltm?   power

@@ -1,0 +1,15 @@
+module: ietf-ip
+
+  augment /if:interfaces/if:interface:
+    +--rw ipv4!
+       +--rw enabled?      boolean
+       +--rw forwarding?   boolean
+       +--rw mtu?          uint16
+       +--rw address* [ip]
+          +--rw ip                     inet:ipv4-address-no-zone
+          +--rw (subnet)
+          |  +--:(prefix-length)
+          |  |  +--rw prefix-length?   uint8
+          |  +--:(netmask)
+          |     +--rw netmask?         yang:dotted-quad {ipv4-non-contiguous-netmasks}?
+          +--ro origin?                ip-address-origin

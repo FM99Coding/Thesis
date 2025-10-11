@@ -1,0 +1,7 @@
+module: ietf-network
+  +--rw networks
+     +--rw network* [network-id]
+        +--rw network-id       network-id
+        +--rw network-types
+        +--rw node* [node-id]
+           +--rw node-id    node-id
