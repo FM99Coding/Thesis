@@ -1,0 +1,390 @@
+[
+    {
+        "id": "urn:ngsi-ld:YANGIdentity:mobile-radio-network:mobile-radio-network",
+        "type": "YANGIdentity",
+        "YANGIdentityDescription": {
+            "type": "Property",
+            "value": "A network representing a mobile radio access network (RAN)."
+        },
+        "YANGIdentityIdentifier": {
+            "type": "Property",
+            "value": "mobile-radio-network"
+        },
+        "YANGIdentityNamespace": {
+            "type": "Property",
+            "value": "urn:unical:dimes:tlc:params:yml:ns:yang:mobile-radio-network"
+        }
+    },
+    {
+        "id": "urn:ngsi-ld:YANGIdentity:iana-if-type:iana-interface-type",
+        "type": "YANGIdentity",
+        "YANGIdentityDescription": {
+            "type": "Property",
+            "value": "This identity is used as a base for all interface types defined in the 'ifType definitions' registry."
+        },
+        "YANGIdentityIdentifier": {
+            "type": "Property",
+            "value": "iana-interface-type"
+        },
+        "YANGIdentityNamespace": {
+            "type": "Property",
+            "value": "urn:ietf:params:yml:ns:yang:iana-if-type"
+        }
+    },
+    {
+        "id": "urn:ngsi-ld:YANGIdentity:iana-if-type:ethernetCsmacd",
+        "type": "YANGIdentity",
+        "YANGIdentityDescription": {
+            "type": "Property",
+            "value": "For all Ethernet-like interfaces, regardless of speed."
+        },
+        "YANGIdentityIdentifier": {
+            "type": "Property",
+            "value": "ethernetCsmacd"
+        },
+        "YANGIdentityNamespace": {
+            "type": "Property",
+            "value": "urn:ietf:params:yml:ns:yang:iana-if-type"
+        },
+        "YANGIdentityBroader": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:YANGIdentity:iana-if-type:iana-interface-type"
+        }
+    },
+    {
+        "id": "urn:ngsi-ld:YANGIdentity:iana-if-type:ieee80211",
+        "type": "YANGIdentity",
+        "YANGIdentityDescription": {
+            "type": "Property",
+            "value": "Radio spread spectrum."
+        },
+        "YANGIdentityIdentifier": {
+            "type": "Property",
+            "value": "ieee80211"
+        },
+        "YANGIdentityNamespace": {
+            "type": "Property",
+            "value": "urn:ietf:params:yml:ns:yang:iana-if-type"
+        },
+        "YANGIdentityBroader": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:YANGIdentity:iana-if-type:iana-interface-type"
+        }
+    },
+    {
+        "id": "urn:ngsi-ld:YANGIdentity:iana-if-type:radioMAC",
+        "type": "YANGIdentity",
+        "YANGIdentityDescription": {
+            "type": "Property",
+            "value": "MAC layer over radio links."
+        },
+        "YANGIdentityIdentifier": {
+            "type": "Property",
+            "value": "radioMAC"
+        },
+        "YANGIdentityNamespace": {
+            "type": "Property",
+            "value": "urn:ietf:params:yml:ns:yang:iana-if-type"
+        },
+        "YANGIdentityBroader": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:YANGIdentity:iana-if-type:iana-interface-type"
+        }
+    },
+    {
+        "id": "urn:ngsi-ld:YANGIdentity:iana-if-type:ip",
+        "type": "YANGIdentity",
+        "YANGIdentityDescription": {
+            "type": "Property",
+            "value": "IP (for APPN HPR in IP networks)."
+        },
+        "YANGIdentityIdentifier": {
+            "type": "Property",
+            "value": "ip"
+        },
+        "YANGIdentityNamespace": {
+            "type": "Property",
+            "value": "urn:ietf:params:yml:ns:yang:iana-if-type"
+        },
+        "YANGIdentityBroader": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:YANGIdentity:iana-if-type:iana-interface-type"
+        }
+    },
+    {
+        "id": "urn:ngsi-ld:YANGIdentity:ietf-microwave-types:coding-modulation",
+        "type": "YANGIdentity",
+        "YANGIdentityDescription": {
+            "type": "Property",
+            "value": "The coding and modulation schemes."
+        },
+        "YANGIdentityIdentifier": {
+            "type": "Property",
+            "value": "coding-modulation"
+        },
+        "YANGIdentityNamespace": {
+            "type": "Property",
+            "value": "urn:ietf:params:yml:ns:yang:ietf-microwave-types"
+        }
+    },
+    {
+        "id": "urn:ngsi-ld:YANGIdentity:ietf-microwave-types:half-bpsk",
+        "type": "YANGIdentity",
+        "YANGIdentityDescription": {
+            "type": "Property",
+            "value": "Half BPSK coding and modulation scheme."
+        },
+        "YANGIdentityIdentifier": {
+            "type": "Property",
+            "value": "half-bpsk"
+        },
+        "YANGIdentityNamespace": {
+            "type": "Property",
+            "value": "urn:ietf:params:yml:ns:yang:ietf-microwave-types"
+        },
+        "YANGIdentityBroader": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:YANGIdentity:ietf-microwave-types:coding-modulation"
+        }
+    },
+    {
+        "id": "urn:ngsi-ld:YANGIdentity:ietf-microwave-types:bpsk",
+        "type": "YANGIdentity",
+        "YANGIdentityDescription": {
+            "type": "Property",
+            "value": "BPSK coding and modulation scheme."
+        },
+        "YANGIdentityIdentifier": {
+            "type": "Property",
+            "value": "bpsk"
+        },
+        "YANGIdentityNamespace": {
+            "type": "Property",
+            "value": "urn:ietf:params:yml:ns:yang:ietf-microwave-types"
+        },
+        "YANGIdentityBroader": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:YANGIdentity:ietf-microwave-types:coding-modulation"
+        }
+    },
+    {
+        "id": "urn:ngsi-ld:YANGIdentity:ietf-microwave-types:qpsk",
+        "type": "YANGIdentity",
+        "YANGIdentityDescription": {
+            "type": "Property",
+            "value": "QPSK coding and modulation scheme."
+        },
+        "YANGIdentityIdentifier": {
+            "type": "Property",
+            "value": "qpsk"
+        },
+        "YANGIdentityNamespace": {
+            "type": "Property",
+            "value": "urn:ietf:params:yml:ns:yang:ietf-microwave-types"
+        },
+        "YANGIdentityBroader": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:YANGIdentity:ietf-microwave-types:coding-modulation"
+        }
+    },
+    {
+        "id": "urn:ngsi-ld:YANGIdentity:ietf-microwave-types:qam-4",
+        "type": "YANGIdentity",
+        "YANGIdentityDescription": {
+            "type": "Property",
+            "value": "4 QAM coding and modulation scheme."
+        },
+        "YANGIdentityIdentifier": {
+            "type": "Property",
+            "value": "qam-4"
+        },
+        "YANGIdentityNamespace": {
+            "type": "Property",
+            "value": "urn:ietf:params:yml:ns:yang:ietf-microwave-types"
+        },
+        "YANGIdentityBroader": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:YANGIdentity:ietf-microwave-types:coding-modulation"
+        }
+    },
+    {
+        "id": "urn:ngsi-ld:YANGIdentity:ietf-microwave-types:qam-16",
+        "type": "YANGIdentity",
+        "YANGIdentityDescription": {
+            "type": "Property",
+            "value": "16 QAM coding and modulation scheme."
+        },
+        "YANGIdentityIdentifier": {
+            "type": "Property",
+            "value": "qam-16"
+        },
+        "YANGIdentityNamespace": {
+            "type": "Property",
+            "value": "urn:ietf:params:yml:ns:yang:ietf-microwave-types"
+        },
+        "YANGIdentityBroader": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:YANGIdentity:ietf-microwave-types:coding-modulation"
+        }
+    },
+    {
+        "id": "urn:ngsi-ld:YANGIdentity:ietf-microwave-types:qam-32",
+        "type": "YANGIdentity",
+        "YANGIdentityDescription": {
+            "type": "Property",
+            "value": "32 QAM coding and modulation scheme."
+        },
+        "YANGIdentityIdentifier": {
+            "type": "Property",
+            "value": "qam-32"
+        },
+        "YANGIdentityNamespace": {
+            "type": "Property",
+            "value": "urn:ietf:params:yml:ns:yang:ietf-microwave-types"
+        },
+        "YANGIdentityBroader": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:YANGIdentity:ietf-microwave-types:coding-modulation"
+        }
+    },
+    {
+        "id": "urn:ngsi-ld:YANGIdentity:ietf-microwave-types:qam-64",
+        "type": "YANGIdentity",
+        "YANGIdentityDescription": {
+            "type": "Property",
+            "value": "64 QAM coding and modulation scheme."
+        },
+        "YANGIdentityIdentifier": {
+            "type": "Property",
+            "value": "qam-64"
+        },
+        "YANGIdentityNamespace": {
+            "type": "Property",
+            "value": "urn:ietf:params:yml:ns:yang:ietf-microwave-types"
+        },
+        "YANGIdentityBroader": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:YANGIdentity:ietf-microwave-types:coding-modulation"
+        }
+    },
+    {
+        "id": "urn:ngsi-ld:YANGIdentity:ietf-microwave-types:qam-128",
+        "type": "YANGIdentity",
+        "YANGIdentityDescription": {
+            "type": "Property",
+            "value": "128 QAM coding and modulation scheme."
+        },
+        "YANGIdentityIdentifier": {
+            "type": "Property",
+            "value": "qam-128"
+        },
+        "YANGIdentityNamespace": {
+            "type": "Property",
+            "value": "urn:ietf:params:yml:ns:yang:ietf-microwave-types"
+        },
+        "YANGIdentityBroader": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:YANGIdentity:ietf-microwave-types:coding-modulation"
+        }
+    },
+    {
+        "id": "urn:ngsi-ld:YANGIdentity:ietf-microwave-types:qam-256",
+        "type": "YANGIdentity",
+        "YANGIdentityDescription": {
+            "type": "Property",
+            "value": "256 QAM coding and modulation scheme."
+        },
+        "YANGIdentityIdentifier": {
+            "type": "Property",
+            "value": "qam-256"
+        },
+        "YANGIdentityNamespace": {
+            "type": "Property",
+            "value": "urn:ietf:params:yml:ns:yang:ietf-microwave-types"
+        },
+        "YANGIdentityBroader": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:YANGIdentity:ietf-microwave-types:coding-modulation"
+        }
+    },
+    {
+        "id": "urn:ngsi-ld:YANGIdentity:ietf-microwave-types:qam-512",
+        "type": "YANGIdentity",
+        "YANGIdentityDescription": {
+            "type": "Property",
+            "value": "512 QAM coding and modulation scheme."
+        },
+        "YANGIdentityIdentifier": {
+            "type": "Property",
+            "value": "qam-512"
+        },
+        "YANGIdentityNamespace": {
+            "type": "Property",
+            "value": "urn:ietf:params:yml:ns:yang:ietf-microwave-types"
+        },
+        "YANGIdentityBroader": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:YANGIdentity:ietf-microwave-types:coding-modulation"
+        }
+    },
+    {
+        "id": "urn:ngsi-ld:YANGIdentity:ietf-microwave-types:qam-1024",
+        "type": "YANGIdentity",
+        "YANGIdentityDescription": {
+            "type": "Property",
+            "value": "1024 QAM coding and modulation scheme."
+        },
+        "YANGIdentityIdentifier": {
+            "type": "Property",
+            "value": "qam-1024"
+        },
+        "YANGIdentityNamespace": {
+            "type": "Property",
+            "value": "urn:ietf:params:yml:ns:yang:ietf-microwave-types"
+        },
+        "YANGIdentityBroader": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:YANGIdentity:ietf-microwave-types:coding-modulation"
+        }
+    },
+    {
+        "id": "urn:ngsi-ld:YANGIdentity:ietf-microwave-types:qam-2048",
+        "type": "YANGIdentity",
+        "YANGIdentityDescription": {
+            "type": "Property",
+            "value": "2048 QAM coding and modulation scheme."
+        },
+        "YANGIdentityIdentifier": {
+            "type": "Property",
+            "value": "qam-2048"
+        },
+        "YANGIdentityNamespace": {
+            "type": "Property",
+            "value": "urn:ietf:params:yml:ns:yang:ietf-microwave-types"
+        },
+        "YANGIdentityBroader": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:YANGIdentity:ietf-microwave-types:coding-modulation"
+        }
+    },
+    {
+        "id": "urn:ngsi-ld:YANGIdentity:ietf-microwave-types:qam-4096",
+        "type": "YANGIdentity",
+        "YANGIdentityDescription": {
+            "type": "Property",
+            "value": "4096 QAM coding and modulation scheme."
+        },
+        "YANGIdentityIdentifier": {
+            "type": "Property",
+            "value": "qam-4096"
+        },
+        "YANGIdentityNamespace": {
+            "type": "Property",
+            "value": "urn:ietf:params:yml:ns:yang:ietf-microwave-types"
+        },
+        "YANGIdentityBroader": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:YANGIdentity:ietf-microwave-types:coding-modulation"
+        }
+    }
+]

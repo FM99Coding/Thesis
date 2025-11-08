@@ -1,0 +1,109 @@
+{
+    "@context": {
+        "ietf-network": "urn:ietf:params:xml:ns:yang:ietf-network/",
+        "ietf-network-topology": "urn:ietf:params:xml:ns:yang:ietf-network-topology/", 
+        "mobile-radio-network": "urn:unical:dimes:tlc:params:xml:ns:yang:mobile-radio-network/",
+
+        "ietf-interfaces": "urn:ietf:params:xml:ns:yang:ietf-interfaces/",
+        "ietf-ip": "urn:ietf:params:xml:ns:yang:ietf-ip/",
+        "ietf-microwave-radio-link": "urn:ietf:params:xml:ns:yang:ietf-microwave-radio-link/",
+
+        "iana-if-type": "urn:ietf:params:xml:ns:yang:iana-if-type",
+        "ietf-microwave-types": "urn:ietf:params:xml:ns:yang:ietf-microwave-types",
+        "time-record-fields": "urn:unical:dimes:tlc:params:xml:ns:yang:time-record-fields";
+        "ietf-yang": "http://ietf.yang.org#",
+        
+        "creationRecord": "time-record-fields:time-records/creation-record";
+        "modificationRecord": "time-record-fields:time-records/modification-record";
+        "observationRecord": "time-record-fields:time-records/observation-record";
+        "deletionRecord": "time-record-fields:time-records/deletion-record";
+        "validUntil": "time-record-fields:time-records/valid-until";
+
+        "Network": "ietf-network:networks/network",
+        "networkId": "ietf-network:networks/network/network-id",
+        "networkTypes": "ietf-network:networks/network/network-types", 
+
+        "NetworkNode": "ietf-network:networks/network/node",
+        "nodeId": "ietf-network:networks/network/node/node-id",
+        "deviceType": "ietf-network:networks/network/node/mobile-radio-network:device-type",
+
+        "NetworkLink": "ietf-network:networks/network/ietf-network-topology:link",
+        "linkId": "ietf-network:networks/network/ietf-network-topology:link/link-id",        
+
+        "NetworkLinkSource": "ietf-network:networks/network/ietf-network-topology:link/source",
+        "sourceNode": "ietf-network:networks/network/ietf-network-topology:link/source/source-node",
+        "sourceTp": "ietf-network:networks/network/ietf-network-topology:link/source/source-tp",
+
+        "NetworkLinkDestination": "ietf-network:networks/network/ietf-network-topology:link/destination",
+        "destNode": "ietf-network:networks/network/ietf-network-topology:link/destination/dest-node",
+        "destTp": "ietf-network:networks/network/ietf-network-topology:link/destination/dest-tp",
+
+        "NetworkNodeTerminationPoint": "ietf-network:networks/network/node/ietf-network-topology:termination-point",
+        "tpId": "ietf-network:networks/network/node/ietf-network-topology:termination-point/tp-id",
+        "interfaceRef": "ietf-network:networks/network/node/ietf-network-topology:termination-point/mobile-radio-network:interface-ref",
+
+        "NetworkRadioConnection": "ietf-network:networks/network/mobile-radio-network:radio-connection",
+        "connectionId": "ietf-network:networks/network/mobile-radio-network:radio-connection/connection-id",
+
+        "NetworkRadioConnectionSource": "ietf-network:networks/network/mobile-radio-network:radio-connection/source",
+        "radioSourceNode": "ietf-network:networks/network/mobile-radio-network:radio-connection/source/source-node",
+        "radioSourceTp": "ietf-network:networks/network/mobile-radio-network:radio-connection/source/source-tp",
+
+        "NetworkRadioConnectionDestinations": "ietf-network:networks/network/mobile-radio-network:radio-connection/destinations",
+        "radioDestinationNode": "ietf-network:networks/network/mobile-radio-network:radio-connection/destinations/destination-node",
+        "radioDestinationTp": "ietf-network:networks/network/mobile-radio-network:radio-connection/destinations/destination-tp",
+
+        "Interface": "ietf-interfaces:interfaces/interface",
+        "interfaceName": "ietf-interfaces:interfaces/interface/name",
+        "interfaceType": "ietf-interfaces:interfaces/interface/type",
+        "interfaceDescription": "ietf-interfaces:interfaces/interface/description",
+        "interfaceEnabled": "ietf-interfaces:interfaces/interface/enabled",
+        "operStatus": "ietf-interfaces:interfaces/interface/oper-status",
+        "physAddress": "ietf-interfaces:interfaces/interface/phys-address",
+        "higherLayerIf": "ietf-interfaces:interfaces/interface/higher-layer-if",
+        "lowerLayerIf": "ietf-interfaces:interfaces/interface/lower-layer-if",
+        "speed": "ietf-interfaces:interfaces/interface/speed",
+        "ipv4Enabled": "ietf-interfaces:interfaces/interface/ietf-ip:ipv4/enabled",
+        "forwarding": "ietf-interfaces:interfaces/interface/ietf-ip:ipv4/forwarding",
+        "ipv4MTU": "ietf-interfaces:interfaces/interface/ietf-ip:ipv4/mtu",
+        "ipv4Address": "ietf-interfaces:interfaces/interface/ietf-ip:ipv4/address",
+        "subnetPrefixLength": "ietf-interfaces:interfaces/interface/ietf-ip:ipv4/subnet/prefix-length",
+        "subnetNetmask": "ietf-interfaces:interfaces/interface/ietf-ip:ipv4/subnet/netmask",
+        "origin": "ietf-interfaces:interfaces/interface/ietf-ip:ipv4/origin",
+
+        "InterfaceStatistics": "ietf-interfaces:interfaces/interface/statistics",
+        "inOctets": "ietf-interfaces:interfaces/interface/statistics/in-octets",
+        "inUnicastPkts": "ietf-interfaces:interfaces/interface/statistics/in-unicast-pkts",
+        "inDiscards": "ietf-interfaces:interfaces/interface/statistics/in-discards",
+        "inErrors": "ietf-interfaces:interfaces/interface/statistics/in-errors",
+        "outOctets": "ietf-interfaces:interfaces/interface/statistics/out-octets",
+        "outUnicastPkts": "ietf-interfaces:interfaces/interface/statistics/out-unicast-pkts",
+        "outDiscards": "ietf-interfaces:interfaces/interface/statistics/out-discards",
+        "outErrors": "ietf-interfaces:interfaces/interface/statistics/out-errors",
+
+        "CarrierTermination": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:carrier-termination",
+        "carrierId": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:carrier-termination/carrier-id",
+        "txEnabled": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:carrier-termination/tx-enabled",
+        "txOperStatus": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:carrier-termination/tx-oper-status",
+        "txFrequency": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:carrier-termination/tx-frequency",
+        "rxFrequency": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:carrier-termination/freq-or-distance/rx-frequency",
+        "dupleyDistance": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:carrier-termination/freq-or-distance/duplex-distance",
+        "channelSeparation": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:carrier-termination/channel-separation",
+        "actualTransmittedLevel": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:carrier-termination/actual-transmitted-level",
+        "actualReceivedLevel": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:carrier-termination/actual-received-level",
+        "actualSnir": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:carrier-termination/actual-snir",
+        "selectedCm": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:carrier-termination/coding-modulation-mode/single/selected-cm",
+        "selectedMinAcm": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:carrier-termination/coding-modulation-mode/adaptive/selected-min-acm",
+        "selectedMaxAcm": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:carrier-termination/coding-modulation-mode/adaptive/selected-max-acm",
+        "minRltm": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:carrier-termination/radio-performance-statistics/min-rltm",
+        "maxRltm": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:carrier-termination/radio-performance-statistics/max-rltm",
+        "minTltm": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:carrier-termination/radio-performance-statistics/min-tltm",
+        "maxTltm": "ietf-interfaces:interfaces/interface/ietf-microwave-radio-link:carrier-termination/radio-performance-statistics/max-tltm",
+ 
+        "YANGIdentity": "ietf-yang:YANGIdentity",
+        "YANGIdentityDescription": "ietf-yang:description",
+        "YANGIdentityIdentifier": "ietf-yang:identifier",
+        "YANGIdentityNamespace": "ietf-yang:namespace",
+        "YANGIdentityBroader": "http://www.w3.org/2004/02/skos/core#broader"
+    }   
+}
