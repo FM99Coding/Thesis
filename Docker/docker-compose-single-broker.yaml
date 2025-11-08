@@ -1,0 +1,83 @@
+version: '3.8'
+name: '5G-NDT'
+    
+volumes:
+  postgres-db: ~
+    
+services:
+  postgres: #PostgreSQL/PostGIS database
+    image: postgis/postgis:latest
+    container_name: db-postgres
+    network_mode: host #accessible on localhost:5432
+    environment:
+      POSTGRES_USER: ngb
+      POSTGRES_PASSWORD: ngb
+      POSTGRES_DB: ngb
+    volumes:
+      - postgres-db:/var/lib/postgresql/data:rw
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ngb -d ngb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  scorpio: #Context Broker FIWARE Scorpio (NGSI-LD)
+    image: fiware/scorpio:latest
+    container_name: fiware-scorpio
+    network_mode: host #accessible on localhost:9090
+    environment:
+      DBHOST: localhost
+      DBPORT: 5432
+      DBUSER: ngb
+      DBPASS: ngb
+      DBNAME: ngb
+      SCORPIO_ATCONTEXTURL: http://localhost:3004 #where the context files are provided
+      SCORPIO_PORT: 9090
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail -s http://localhost:9090/q/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10 #high tolerance for db container to be initialised
+      start_period: 60s #high tolerance for db container to be initialised
+
+  context-provider: #Context Provider (JSON-LD Web Service)
+    build:
+      context: .
+      dockerfile: Context-Provider-3004-Dockerfile
+    container_name: fiware-context-provider
+    network_mode: host #accessible from localhost:3004
+    depends_on:
+      scorpio:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sS -o /dev/null -w '%{http_code}' http://localhost:3004/mobile-radio-network-context.jsonld | grep -E '^(200|304)$' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  context-client:
+    build:
+      context: .
+      dockerfile: NGSI-Client-1-Dockerfile
+    container_name: context-client-1
+    network_mode: host
+    #Allow user interaction
+    stdin_open: true 
+    tty: true
+    volumes:
+      - /home/francesco2/Documenti/PycharmProjects/Thesis2:/ngsi-client-app/scripts  #Bind Mount for testing scripts
+      - /home/francesco2/Documenti/Thesis_2025/NGSI-LD/Network_+_Interface/version15_10/ngsi_python_client_openapi:/ngsi-client-app/python-api-1 #Bind Mount for OpenAPi client library
+    command: >
+      bash -c "python ./python-api-1/setup.py install --user && tail -f /dev/null"
+    depends_on:
+      scorpio:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "test -e /bin/bash"]
+      interval: 30s
+      timeout: 5s
+      retries: 3   

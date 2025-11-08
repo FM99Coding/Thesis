@@ -1,0 +1,18 @@
+# =========================
+# Dockerfile Context-Provider
+# =========================
+
+# Lightweight Apache HTTP web-server image
+FROM httpd:alpine 
+
+# Custom config file for web server
+COPY httpd.conf /usr/local/apache2/conf/httpd.conf 
+
+# Web-server will expose files in this dir
+WORKDIR /usr/local/apache2/htdocs/ 
+
+# Copy context file from host system to container working dir
+COPY mobile-radio-network-context.jsonld . 
+
+# Web-server exposed port
+EXPOSE 3004 

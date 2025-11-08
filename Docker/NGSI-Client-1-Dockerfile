@@ -1,0 +1,22 @@
+# =========================
+# Dockerfile NGSI-Client-1
+# =========================
+
+# Base python image
+FROM python:3.9.5-slim 
+
+# Update system and install curl from Debian mirror archive (archive.debian.org)
+RUN sed -i 's/deb.debian.org/archive.debian.org/g' /etc/apt/sources.list \
+    && sed -i 's/security.debian.org/archive.debian.org/g' /etc/apt/sources.list \
+    && apt-get update \
+    && apt-get install -y \
+        curl \
+        build-essential \
+        git \
+    && rm -rf /var/lib/apt/lists/*
+    
+# Set working dir  
+WORKDIR /ngsi-client-app 
+
+# Keep container alive for user interaction
+CMD ["tail", "-f", "/dev/null"] 
