@@ -1,0 +1,179 @@
+module ietf-geo-location { 
+  yang-version 1.1;
+  namespace "urn:ietf:params:xml:ns:yang:ietf-geo-location"; 
+  prefix geo;
+
+  import ietf-yang-types { 
+    prefix yang;
+    reference "RFC 6991: Common YANG Data Types"; 
+  }
+  import time-record-fields {
+    prefix trf;
+  }
+
+  organization "UNIVERSITA DELLA CALABRIA - Master Degree in Telecommunication 
+                Engineering, Smart Sensing, Computing, and Networking - TITAN Lab";
+  contact "Course Web: <https://corsi.unical.it/lm/telecommunicationengineering-smart-
+                        sensing-computing-and-networking/ >
+           Editor: Francesco Mazzei <mailto:francesco1999mazzei@gmail.com>
+           Supervisor: Pasquale Pace <mailto: p.pace@dimes.unical.it>
+           Supervisor: Antonio Iera <mailto: antonio.iera@dimes.unical.it>";
+  description "This module defines a grouping of a container object for 
+               specifying a location on or around an astronomical object.
+
+	       This YANG module has been developed as part of the Master's Thesis
+               in Telecommunication Engineering at the University of Calabria. The 
+               model is based on and modifies the module defined in RFC 9179(IETF 
+               NETMOD Working Group), preserving the original structure and 
+               introducing extensions/adaptations for the purposes of this research.
+
+               Copyright (c) 2022 IETF Trust and the persons identified as authors of 
+               the code. All rights reserved. Redistribution and use in source and 
+               binary forms, with or without modification, is permitted pursuant to, 
+               and subject to the license terms contained in, the Simplified BSD 
+               License set forth in Section 4.c of the IETF Trust's Legal Provisions 
+               Relating to IETF Documents(https://trustee.ietf.org/license-info).";
+
+  revision 2025-10-04 {
+    description "Elements considered non-essential for the objectives of the Master's 
+                 Thesis have been omitted. The original structure and semantics have 
+                 been preserved where applicable.";
+  }
+  revision 2022-02-11 { 
+    description "Initial Revision"; 
+    reference "RFC 9179: A YANG Grouping for Geographic Locations"; 
+  }
+
+  grouping geo-location { 
+    description "Grouping to identify a location on an astronomical object.";
+  
+    container geo-location { 
+      description "A location on an astronomical body (e.g., 'earth').";
+   
+      container reference-frame { 
+        description "The Frame of Reference for the location values.";
+
+        leaf astronomical-body { 
+          type string {
+            pattern '[ -@\[-\^_-~]*'; 
+          }
+          default "earth"; 
+          description "An astronomical body as named by the International 
+                       Astronomical Union (IAU).";
+          reference "https://www.iau.org/";
+        }
+
+        container geodetic-system { 
+          description "The geodetic system of the location data."; 
+ 
+          leaf geodetic-datum {
+            type string {
+              pattern '[ -@\[-\^_-~]*';
+            } 
+            description "A geodetic-datum defining the meaning of latitude, 
+                         longitude, and height. The default when the 
+                         astronomical body is 'earth' is 'wgs-84', which is 
+                         used by the Global Positioning System (GPS).";
+            reference "RFC 9179: A YANG Grouping for Geographic Locations, 
+                       Section 6.1";
+          } //leaf geodetic-datum
+        } //container geodetic-system
+      } //container reference-frame
+
+      choice location { 
+        description "The location data either in latitude/longitude or 
+                     Cartesian values";
+
+        case ellipsoid { 
+          leaf latitude {
+            type decimal64 { 
+               fraction-digits 16;
+             } //type decimal64
+             units "decimal degrees";
+             description "The latitude value on the astronomical body.";
+          } //leaf latitude
+
+          leaf longitude { 
+            type decimal64 {
+              fraction-digits 16; 
+            }
+            units "decimal degrees"; 
+            description "The longitude value on the astronomical body.";
+          }
+
+          leaf height { 
+            type decimal64 {
+              fraction-digits 6; 
+            }
+          units "meters"; 
+          description "Height from a reference 0 value.";
+          } 
+        } //case ellipsoid
+
+        case cartesian { 
+          leaf x {
+            type decimal64 { 
+              fraction-digits 6;
+            }
+            units "meters"; 
+            description "The X value as defined by the reference-frame."; 
+          }
+
+          leaf y {
+            type decimal64 { 
+              fraction-digits 6;
+            }
+            units "meters"; 
+            description "The Y value as defined by the reference-frame."; 
+          }
+ 
+          leaf z {
+            type decimal64 { 
+              fraction-digits 6;
+            }
+            units "meters"; 
+            description "The Z value as defined by the reference-frame."; 
+          }
+        } //case Cartesian
+      } //choice location
+
+      container velocity { 
+        description "If the object is in motion, the velocity vector describes 
+                     this motion at the time given by the timestamp.";
+        reference "RFC 9179: A YANG Grouping for Geographic Locations";
+
+        leaf v-north { 
+          type decimal64 {
+            fraction-digits 12; 
+          }
+          units "meters per second"; 
+          description "v-north is the rate of change (i.e., speed) towards true 
+                       north as defined by the geodetic-system.";
+        }
+
+        leaf v-east { 
+          type decimal64 {
+            fraction-digits 12; 
+          }
+          units "meters per second"; 
+          description "v-east is the rate of change (i.e., speed) perpendicular 
+                       to the right of true north as defined by the geodetic-
+                       system."; 
+        }
+
+        leaf v-up {
+          type decimal64 { 
+            fraction-digits 12;
+          }
+          units "meters per second"; 
+          description "v-up is the rate of change (i.e., speed) away from the 
+                       center of mass.";
+        } 
+      } //container velocity
+
+      container time-records {     
+        uses trf:time-records;
+      }
+    } //container geo-location
+  } //grouping geo-location
+} //module ietf-geo-location

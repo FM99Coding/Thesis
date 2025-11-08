@@ -1,0 +1,163 @@
+module ietf-ip {
+  yang-version 1.1;
+  namespace "urn:ietf:params:xml:ns:yang:ietf-ip";
+  prefix ip;
+
+  import ietf-interfaces {
+    prefix if;
+    reference "RFC 8343: A YANG Data Model for Interface Management";
+  }
+  import ietf-inet-types {
+    prefix inet;
+    reference "RFC 6991: Common YANG Data Types";
+  }
+  import ietf-yang-types {
+    prefix yang;
+    reference "RFC 6991: Common YANG Data Types";
+  }
+  import time-record-fields {
+    prefix trf;
+  }
+      
+  organization "UNIVERSITA' DELLA CALABRIA - Master Degree in Telecommunication 
+                Engineering, Smart Sensing, Computing, and Networking - TITAN Lab";
+  contact "Course Web: <https://corsi.unical.it/lm/telecommunicationengineering-smart-
+                        sensing-computing-and-networking/ >
+           Editor: Francesco Mazzei <mailto:francesco1999mazzei@gmail.com>
+           Supervisor: Pasquale Pace <mailto: p.pace@dimes.unical.it>
+           Supervisor: Antonio Iera <mailto: antonio.iera@dimes.unical.it>";
+  description "This module contains a collection of YANG definitions for managing 
+               IP implementations. 
+
+               This YANG module has been developed as part of the Master's Thesis
+               in Telecommunication Engineering at the University of Calabria. The 
+               model is based on and modifies the module defined in RFC 8344 (IETF NETMOD 
+               Working Group), preserving the original structure and introducing 
+               extensions/adaptations for the purposes of this research.
+
+               Copyright (c) 2018 IETF Trust and the persons identified as authors of 
+               the code. All rights reserved. Redistribution and use in source and 
+               binary forms, with or without modification, is permitted pursuant to, 
+               and subject to the license terms contained in, the Simplified BSD 
+               License set forth in Section 4.c of the IETF Trust’s Legal Provisions 
+               Relating to IETF Documents(https://trustee.ietf.org/license-info).";
+
+  revision 2025-10-04 {
+    description "Elements considered non-essential for the objectives of the Master's 
+                 Thesis have been omitted. The original structure and semantics have 
+                 been preserved where applicable.";
+  }
+  revision 2018-02-22 {
+    description "Updated to support NMDA.";
+    reference "RFC 8344: A YANG Data Model for IP Management";
+  }
+  revision 2014-06-16 {
+    description "Initial revision.";
+    reference "RFC 7277: A YANG Data Model for IP Management";
+  }
+
+  feature ipv4-non-contiguous-netmasks {
+    description "Indicates support for configuring non-contiguous subnet masks.";
+  }
+      
+  typedef ip-address-origin {
+    type enumeration {
+      enum other {
+        description "None of the following.";
+      }
+      enum static {
+        description "Static Configuration.";
+      }
+      enum dhcp {
+        description "DHCP.";
+      }
+      enum random {
+        description "Chosen by the system at random.";
+        reference "RFC 4941: Privacy Extensions for Stateless Address 
+                             Autoconfiguration in IPv6
+                   RFC 7217: A Method for Generating Semantically Opaque Interface 
+                             Identifiers with IPv6 Stateless Address Autoconfiguration 
+                             (SLAAC)";
+      }
+    } //type enumeration
+    description "The origin of an address.";
+  } //typedef ip-address-origin
+
+  augment "/if:interfaces/if:interface" {
+    description "IP parameters on interfaces.";
+
+    container ipv4 {
+      presence "Enables IPv4 unless the ’enabled’ leaf (which defaults to ’true’) 
+                is set to ’false’";
+      description "Parameters for the IPv4 address family.";
+
+      leaf enabled {
+        type boolean;
+        default true;
+        description "Controls whether IPv4 is enabled on this interface.";
+      }
+
+      leaf forwarding {
+        type boolean;
+        default false;
+        description "Controls IPv4 packet forwarding of datagrams received by,
+                     but not addressed to, this interface. IPv4 routers forward 
+                     datagrams. IPv4 hosts do not (except those source-routed via 
+                     the host).";
+      }
+
+      leaf mtu {
+        type uint16 {
+          range "68..max";
+        }
+        units "octets";
+        description "The size, in byte, of the largest IPv4 packet that the interface 
+                     will send and receive.";
+        reference "RFC 791: Internet Protocol";
+      }
+
+      list address {
+        key "ip";
+        description "The list of IPv4 addresses on the interface.";
+
+        leaf ip {
+          type inet:ipv4-address-no-zone;
+          description "The IPv4 address on the interface.";
+        }
+
+        choice subnet {
+          mandatory true;
+          description "The subnet can be specified as a prefix length or, if the 
+                           server supports non-contiguous netmasks, as a netmask.";
+              
+          leaf prefix-length {
+            type uint8 {
+              range "0..32";
+            }
+            description "The length of the subnet prefix.";
+          }
+
+          leaf netmask {
+            if-feature ipv4-non-contiguous-netmasks;
+            type yang:dotted-quad;
+            description "The subnet specified as a netmask.";
+          }
+        } //choice subnet
+
+        leaf origin {
+          type ip-address-origin;
+          config false;
+          description "The origin of this address.";
+        }
+        
+        container time-records {     
+          uses trf:time-records;
+        }
+      } //list address
+      
+      container time-records {     
+        uses trf:time-records;
+      }
+    } //container ipv4
+  } //augment "/if:interfaces/if:interface"
+} //module ietf-ip

@@ -1,0 +1,166 @@
+module mobile-radio-network {
+  yang-version 1.1;
+  namespace "urn:unical:dimes:tlc:params:xml:ns:yang:mobile-radio-network";
+  prefix mrn;
+
+  import ietf-network {
+    prefix nw;
+    reference "RFC 8345: A YANG Data Model for Network Topologies";
+  }
+  import ietf-network-topology {
+    prefix nt;
+    reference "RFC 8345: A YANG Data Model for Network Topologies";
+  }
+  import ietf-interfaces {
+    prefix if;
+    reference "RFC 8343: A YANG Data Model for Interface Management";
+  }
+  import ietf-geo-location {
+    prefix geo;
+    reference "RFC 8348: A YANG Data Model for Geo-location";
+  }
+  import time-record-fields {
+    prefix trf;
+  }
+
+  organization "UNIVERSITA' - DELLA CALABRIA - Master Degree in Telecommunication 
+                Engineering, Smart Sensing, Computing, and Networking - TITAN Lab";
+  contact "Course Web: <https://corsi.unical.it/lm/telecommunicationengineering-smart-
+                        sensing-computing-and-networking/ >
+           Editor: Francesco Mazzei <mailto:francesco1999mazzei@gmail.com>
+           Supervisor: Pasquale Pace <mailto: p.pace@dimes.unical.it>
+           Supervisor: Antonio Iera <mailto: antonio.iera@dimes.unical.it>";
+  description "This module defines a custom network type 'mobile-radio-network' by 
+               augmenting the IETF network topology model (RFC 8345). 
+
+               It introduces specific node properties for mobile network elements 
+               (e.g., RAN AP, Mobile Station), conditional geo-location, and a 
+               simplified radio connection list. 
+
+               The module adheres to the extension principles defined in the base                  
+               IETF network and topology models.";
+
+  revision 2025-10-06 {
+    description "Initial Revision.";
+  }
+
+  identity mobile-radio-network {
+    description "A network representing a mobile radio access network (RAN).";
+  }
+  
+  augment "/nw:networks/nw:network/nw:network-types" {
+    description "Augmentation for mobile-radio-network type.";
+    container mobile-radio-network {
+      presence "Indicates that this is a mobile radio network.";
+    }
+  }
+
+  augment "/nw:networks/nw:network/nw:node" {
+    description "Adds mobile radio specific properties to a network node.";
+    when "/nw:networks/nw:network/nw:network-types/mrn:mobile-radio-network";
+
+    leaf device-type {
+      type enumeration {
+        enum "core-switch" { 
+          description "Core network switch."; 
+        }
+        enum "ran-ap" { 
+          description "Radio Access Network Access Point (e.g., gNB or eNB)."; 
+        }
+        enum "host" { 
+          description "Standard host or server."; 
+        }
+        enum "mobile-station" { 
+           description "User equipment (UE) or mobile device."; 
+        }
+      }
+      mandatory true;
+      description "The type of device represented by this node.";
+    }
+
+    container geo-location {
+      when "../mrn:device-type = 'ran-ap' or ../mrn:device-type = 'mobile-station'";
+      description "Geographic location of the RAN AP or Mobile Station.";      
+      uses geo:geo-location;
+    }
+  }
+        
+  augment "/nw:networks/nw:network/nw:node/nt:termination-point" {
+    description "Adds constraints for TP type binding.";
+
+    leaf interface-ref {
+      type if:interface-ref;
+      description "Reference to the corresponding interface in ietf-interfaces.";     
+    }
+  } //augment "/nw:networks/nw:network/nw:node/nt:termination-point"
+
+  augment "/nw:networks/nw:network" {
+    description "Adds radio connection list to a mobile radio network.";
+    when "/nw:networks/nw:network/nw:network-types/mrn:mobile-radio-network";
+
+    list radio-connection {
+      key "connection-id";
+      description "A simplified list of radio connections between nodes.";
+
+      leaf connection-id {
+        type nt:link-id;
+        description "Unique identifier for the radio connection.";
+      }
+
+      container source {
+        description "Source node and source termination point of a link.";
+        
+        leaf source-node {
+          type leafref {
+            path "../../../nw:node/nw:node-id";
+            require-instance false;
+          }
+          description "Source node identifier.";
+        }
+        
+        leaf source-tp {
+          type leafref {
+            path "../../../nw:node[nw:node-id=current()/../source-node]/"+            
+                 "nt:termination-point/nt:tp-id";
+            require-instance false;
+          }
+          description "Source TP identifier.";
+        }
+        
+        container time-records {     
+          uses trf:time-records;
+        }
+      } //container source
+
+      list destinations {
+        key "destination-node destination-tp";
+        description "A list of destination nodes and termination points.";
+        min-elements 1;
+        
+        leaf destination-node {
+          type leafref {
+            path "/nw:networks/nw:network/nw:node/nw:node-id";
+            require-instance false;
+          }
+          description "Destination node identifier.";
+        }
+        
+        leaf destination-tp {
+          type leafref {
+            path "/nw:networks/nw:network/nw:node[nw:node-id=current()/../destination-node]/nt:termination-point/nt:tp-id";
+            require-instance false;
+          }
+          description "Destination TP identifier.";
+          
+          container time-records {     
+            uses trf:time-records;
+          }
+        }
+      } //list destinations
+      
+      container time-records {     
+        uses trf:time-records;
+      }
+    } //list radio-connection
+  } //augment /nw:networks/nw:network
+} //module mobile-radio-netw

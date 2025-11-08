@@ -1,0 +1,65 @@
+module time-record-fields {
+  yang-version 1.1;
+  namespace "urn:unical:dimes:tlc:params:xml:ns:yang:time-record-fields";
+  prefix trf;
+  
+  import ietf-yang-types { 
+    prefix yang;
+    reference "RFC 6991: Common YANG Data Types"; 
+  }
+
+  organization "UNIVERSITA' - DELLA CALABRIA - Master Degree in Telecommunication 
+                Engineering, Smart Sensing, Computing, and Networking - TITAN Lab";
+  contact "Course Web: <https://corsi.unical.it/lm/telecommunicationengineering-smart-
+                        sensing-computing-and-networking/ >
+           Editor: Francesco Mazzei <mailto:francesco1999mazzei@gmail.com>
+           Supervisor: Pasquale Pace <mailto: p.pace@dimes.unical.it>
+           Supervisor: Antonio Iera <mailto: antonio.iera@dimes.unical.it>";
+  description "This module defines custom time-recording fields using YANG
+  	       date-and-time format (ISO 8601).
+  	       
+  	       The complete format is YYYY-MM-DDThh:mm:ss.SSSSSSZ:
+  	       - Year (YYYY);
+  	       - Month (MM);
+  	       - Day (DD);
+  	       - Day-hour separator (T);
+	       - Hours (hh);
+	       - Minutes (mm);
+	       - Seconds (ss);
+	       - Separator + Milliseconds (.SSSSSS);
+	       - Time Zone UTC (Z)";
+
+  revision 2025-10-27 {
+    description "Initial Revision.";
+  }
+  
+  grouping time-records {
+    description "Grouping containing different timestamp fields."; 
+    
+    leaf creation-record {
+      type yang:date-and-time; 
+      description "Reference time when an entity/property has been created."; 
+    }
+    
+    leaf modification-record {
+      type yang:date-and-time; 
+      description "Reference time when an entity/property has been last modified."; 
+    }
+    
+    leaf observation-record {
+      type yang:date-and-time; 
+      description "Reference time when an entity/property has been last observed."; 
+    }
+    
+    leaf deletion-record {
+      type yang:date-and-time; 
+      description "Reference time when an entity/property has been deleted."; 
+    }
+
+    leaf valid-until {
+      type yang:date-and-time; 
+      description "Expiration time for an entity/property. If unspecified, 
+                   the entity/property has no expiration";
+    }
+  } //grouping time-records
+} //module time-record-fields 
